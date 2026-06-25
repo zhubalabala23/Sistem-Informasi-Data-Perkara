@@ -16,7 +16,10 @@ import {
   ChevronRight,
   CheckCircle,
   X,
-  FileText as FilePdf
+  FileText as FilePdf,
+  Menu,
+  User,
+  Database
 } from 'lucide-react';
 import { db } from '../firebase/config';
 import { collection, getDocs } from 'firebase/firestore';
@@ -28,86 +31,186 @@ const KumdamLogo = () => (
   <img src={logoKumdam} alt="Logo Kumdam XVII Cenderawasih" className="w-10 h-10 object-cover rounded-lg flex-shrink-0 drop-shadow-md border border-black" />
 );
 
-const MOCK_KESATUAN_DATA = [
-  {
-    id: 'k_1',
-    namaLengkap: 'Budi Santoso',
-    nrpNip: '1234567890',
-    pangkat: 'Serda',
-    jenisPerkara: 'Disersi',
-    tahapPenyelesaian: 'SIDANG',
-    putusan: 'Menunggu Putusan'
-  },
-  {
-    id: 'k_2',
-    namaLengkap: 'Agus Wijaya',
-    nrpNip: '9876543210',
-    pangkat: 'Lettu Inf',
-    jenisPerkara: 'Penyalahgunaan Wewenang',
-    tahapPenyelesaian: 'PENYIDIKAN',
-    putusan: '-'
-  },
-  {
-    id: 'k_3',
-    namaLengkap: 'Hendra Kurniawan',
-    nrpNip: '5647382910',
-    pangkat: 'Kopda',
-    jenisPerkara: 'Laka Lintas',
-    tahapPenyelesaian: 'PUTUSAN',
-    putusan: 'Pidana Penjara 3 Bulan'
-  },
-  {
-    id: 'k_4',
-    namaLengkap: 'Andi Pratama',
-    nrpNip: '2233445566',
-    pangkat: 'Sertu',
-    jenisPerkara: 'Penganiayaan',
-    tahapPenyelesaian: 'PENUNTUTAN',
-    putusan: '-'
-  },
-  {
-    id: 'k_5',
-    namaLengkap: 'Slamet Riyadi',
-    nrpNip: '1122334455',
-    pangkat: 'Praka',
-    jenisPerkara: 'Narkotika',
-    tahapPenyelesaian: 'SIDANG',
-    putusan: 'Pemeriksaan Saksi'
-  },
-  {
-    id: 'k_6',
-    namaLengkap: 'Dharma Utama',
-    nrpNip: '1289384721',
-    pangkat: 'Koptu',
-    jenisPerkara: 'Disiplin Murni',
-    tahapPenyelesaian: 'PENYIDIKAN',
-    putusan: '-'
-  },
-  {
-    id: 'k_7',
-    namaLengkap: 'Rian Hidayat',
-    nrpNip: '3109283742',
-    pangkat: 'Letda Chk',
-    jenisPerkara: 'THTI',
-    tahapPenyelesaian: 'PUTUSAN',
-    putusan: 'Teguran Disiplin'
-  },
-  {
-    id: 'k_8',
-    namaLengkap: 'Fajar Nugraha',
-    nrpNip: '3102938472',
-    pangkat: 'Pratu',
-    jenisPerkara: 'Pencurian',
-    tahapPenyelesaian: 'PENUNTUTAN',
-    putusan: '-'
-  }
+const renderPutusanCell = (item) => {
+  const hasTexts = item.pidanaPokok || item.pidanaTambahan || item.noSalinanPutusan || item.noPetikanPutusan || item.noAkteBht;
+  const hasSalinan = !!item.salinanPutusan;
+  const hasPetikan = !!item.petikanPutusan;
+  const hasAkte = !!item.akteBht;
+
+  const downloadFile = (fileUrlOrBase64, filename) => {
+    if (!fileUrlOrBase64) return;
+    if (fileUrlOrBase64.startsWith('http://') || fileUrlOrBase64.startsWith('https://')) {
+      window.open(fileUrlOrBase64, '_blank');
+    } else {
+      const link = document.createElement('a');
+      link.href = fileUrlOrBase64;
+      link.download = filename || 'dokumen.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1 text-[11px] leading-tight max-w-[250px] text-left">
+      {hasTexts ? (
+        <div className="text-slate-700 font-medium">
+          {item.pidanaPokok && (
+            <div>
+              <span className="font-bold text-slate-500">Pokok:</span> {item.pidanaPokok}
+            </div>
+          )}
+          {item.pidanaTambahan && (
+            <div className="mt-0.5">
+              <span className="font-bold text-slate-500">Tambahan:</span> {item.pidanaTambahan}
+            </div>
+          )}
+          {item.noSalinanPutusan && (
+            <div className="mt-0.5 text-slate-600 font-semibold">
+              <span className="font-bold text-slate-500">No. Salinan:</span> {item.noSalinanPutusan}
+            </div>
+          )}
+          {item.noPetikanPutusan && (
+            <div className="mt-0.5 text-slate-600 font-semibold">
+              <span className="font-bold text-slate-500">No. Petikan:</span> {item.noPetikanPutusan}
+            </div>
+          )}
+          {item.noAkteBht && (
+            <div className="mt-0.5 text-slate-600 font-semibold">
+              <span className="font-bold text-slate-500">No. Akte BHT:</span> {item.noAkteBht}
+            </div>
+          )}
+        </div>
+      ) : (
+        <span className="text-slate-400 italic font-semibold">{item.putusan || '-'}</span>
+      )}
+      
+      {!hasTexts && item.dokumenPutusan && typeof item.dokumenPutusan === 'string' && !item.dokumenPutusan.startsWith('data:') && (
+        <div className="text-[9px] text-slate-500 mt-1 font-semibold border-t border-slate-100 pt-1 leading-normal">
+          {item.dokumenPutusan}
+        </div>
+      )}
+      
+      {(hasSalinan || hasPetikan || hasAkte) && (
+        <div className="flex flex-wrap gap-1 mt-1.5 select-none" onClick={(e) => e.stopPropagation()}>
+          {hasSalinan && (
+            <button
+              onClick={() => downloadFile(item.salinanPutusan, item.salinanPutusanName || 'Salinan_Putusan.pdf')}
+              className="px-2 py-0.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded text-[9px] font-extrabold transition-colors flex items-center gap-0.5 shadow-sm"
+              title="Download Salinan Putusan"
+            >
+              📄 Salinan
+            </button>
+          )}
+          {hasPetikan && (
+            <button
+              onClick={() => downloadFile(item.petikanPutusan, item.petikanPutusanName || 'Petikan_Putusan.pdf')}
+              className="px-2 py-0.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded text-[9px] font-extrabold transition-colors flex items-center gap-0.5 shadow-sm"
+              title="Download Petikan Putusan"
+            >
+              📄 Petikan
+            </button>
+          )}
+          {hasAkte && (
+            <button
+              onClick={() => downloadFile(item.akteBht, item.akteBhtName || 'Akte_BHT.pdf')}
+              className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded text-[9px] font-extrabold transition-colors flex items-center gap-0.5 shadow-sm"
+              title="Download Akte BHT"
+            >
+              📜 Akte BHT
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const KESATUAN_OPTIONS = [
+  { id: 'POMDAM', nama: 'POMDAM XVII/CENDERAWASIH' },
+  { id: 'ZIDAM', nama: 'ZIDAM XVII/CENDERAWASIH' },
+  { id: 'KOMLEKDAM', nama: 'KOMLEKDAM XVII/CENDERAWASIH' },
+  { id: 'RINDAM', nama: 'RINDAM XVII/CENDERAWASIH' }
 ];
 
+const MOCK_KESATUAN_DATA = [];
+
 export default function PerkaraKesatuan() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
 
-  // State Management
-  const [perkaraList, setPerkaraList] = useState([]);
+  const loggedInKesatuan = (() => {
+    const saved = sessionStorage.getItem('selected_kesatuan');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return null;
+  })();
+  const isKesatuanVerified = sessionStorage.getItem('is_kesatuan_verified') === 'true';
+
+  // Load the active/selected kesatuan from sessionStorage
+  const [selectedKesatuan, setSelectedKesatuan] = useState(() => {
+    const saved = sessionStorage.getItem('selected_kesatuan');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return { id: 'POMDAM', nama: 'POMDAM XVII/CENDERAWASIH' };
+  });
+
+  // Permission helper: general admin can print any, specific kesatuan can only print their own
+  const canPrintUnit = !isKesatuanVerified || (
+    loggedInKesatuan && selectedKesatuan && (() => {
+      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/e/g, '');
+      return clean(selectedKesatuan.nama) === clean(loggedInKesatuan.nama) || clean(selectedKesatuan.id) === clean(loggedInKesatuan.id);
+    })()
+  );
+
+  // State Management - pre-initialized from LocalStorage cache for 0ms rendering
+  const [perkaraList, setPerkaraList] = useState(() => {
+    const localData = localStorage.getItem('perkara_data');
+    const localList = localData ? JSON.parse(localData) : [];
+    const mappedLocal = localList.map(item => ({
+      id: item.id,
+      noPerkara: item.noPerkara || '',
+      namaLengkap: item.namaLengkap,
+      nrpNip: item.nrpNip,
+      pangkat: item.pangkat,
+      satuan: item.satuan,
+      jenisPerkara: item.jenisPerkara,
+      tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'SIDANG'),
+      putusan: item.putusan || (item.status === 'SELESAI' ? 'Selesai' : '-'),
+      pidanaPokok: item.pidanaPokok || '',
+      pidanaTambahan: item.pidanaTambahan || '',
+      noSalinanPutusan: item.noSalinanPutusan || '',
+      noPetikanPutusan: item.noPetikanPutusan || '',
+      noAkteBht: item.noAkteBht || '',
+      salinanPutusan: item.salinanPutusan || null,
+      salinanPutusanName: item.salinanPutusanName || '',
+      petikanPutusan: item.petikanPutusan || null,
+      petikanPutusanName: item.petikanPutusanName || '',
+      akteBht: item.akteBht || null,
+      akteBhtName: item.akteBhtName || '',
+      status: item.status || ''
+    }));
+
+    const combined = [...mappedLocal];
+    const seen = new Set(combined.map(item => item.nrpNip || item.id).filter(Boolean));
+    MOCK_KESATUAN_DATA.forEach(mockItem => {
+      if (!seen.has(mockItem.nrpNip)) {
+        seen.add(mockItem.nrpNip);
+        combined.push(mockItem);
+      }
+    });
+    return combined;
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPerkara, setSelectedPerkara] = useState('');
@@ -131,15 +234,31 @@ export default function PerkaraKesatuan() {
         const querySnapshot = await getDocs(collection(db, 'perkara'));
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          firestoreList.push({
-            id: doc.id,
-            namaLengkap: data.namaLengkap,
-            nrpNip: data.nrpNip,
-            pangkat: data.pangkat,
-            jenisPerkara: data.jenisPerkara,
-            tahapPenyelesaian: data.tahapPenyelesaian?.toUpperCase() || (data.status === 'SELESAI' ? 'PUTUSAN' : 'SIDANG'),
-            putusan: data.putusan || (data.status === 'SELESAI' ? 'Selesai' : '-')
-          });
+            firestoreList.push({
+              id: doc.id,
+              noPerkara: data.noPerkara || '',
+              namaLengkap: data.namaLengkap,
+              nrpNip: data.nrpNip,
+              pangkat: data.pangkat,
+              satuan: data.satuan,
+              jenisPerkara: data.jenisPerkara,
+              tahapPenyelesaian: data.tahapPenyelesaian?.toUpperCase() || (data.status === 'SELESAI' ? 'PUTUSAN' : 'SIDANG'),
+              putusan: data.putusan || (data.status === 'SELESAI' ? 'Selesai' : '-'),
+              pidanaPokok: data.pidanaPokok || '',
+              pidanaTambahan: data.pidanaTambahan || '',
+              noSalinanPutusan: data.noSalinanPutusan || '',
+              noPetikanPutusan: data.noPetikanPutusan || '',
+              noAkteBht: data.noAkteBht || '',
+              salinanPutusan: data.salinanPutusan || null,
+              salinanPutusanName: data.salinanPutusanName || '',
+              petikanPutusan: data.petikanPutusan || null,
+              petikanPutusanName: data.petikanPutusanName || '',
+              akteBht: data.akteBht || null,
+              akteBhtName: data.akteBhtName || '',
+              fileUrl: data.fileUrl || null,
+              fileName: data.fileName || '',
+              status: data.status || ''
+            });
         });
       } catch (error) {
         console.warn("Could not load Firestore. Using fallbacks.", error);
@@ -150,20 +269,51 @@ export default function PerkaraKesatuan() {
       const localList = localData ? JSON.parse(localData) : [];
       const mappedLocal = localList.map(item => ({
         id: item.id,
+        isOfflineCreated: item.isOfflineCreated,
+        noPerkara: item.noPerkara || '',
         namaLengkap: item.namaLengkap,
         nrpNip: item.nrpNip,
         pangkat: item.pangkat,
+        satuan: item.satuan,
         jenisPerkara: item.jenisPerkara,
         tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'SIDANG'),
-        putusan: item.putusan || (item.status === 'SELESAI' ? 'Selesai' : '-')
+        putusan: item.putusan || (item.status === 'SELESAI' ? 'Selesai' : '-'),
+        pidanaPokok: item.pidanaPokok || '',
+        pidanaTambahan: item.pidanaTambahan || '',
+        noSalinanPutusan: item.noSalinanPutusan || '',
+        noPetikanPutusan: item.noPetikanPutusan || '',
+        noAkteBht: item.noAkteBht || '',
+        salinanPutusan: item.salinanPutusan || null,
+        salinanPutusanName: item.salinanPutusanName || '',
+        petikanPutusan: item.petikanPutusan || null,
+        petikanPutusanName: item.petikanPutusanName || '',
+        akteBht: item.akteBht || null,
+        akteBhtName: item.akteBhtName || '',
+        status: item.status || ''
       }));
 
       // Combine and filter duplicates
-      const combined = [...firestoreList, ...mappedLocal];
-      const uniqueList = [...combined];
+      const uniqueList = [];
+      const seen = new Set();
+      firestoreList.forEach(item => {
+        const key = item.noPerkara || item.id || item.nrpNip;
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          uniqueList.push(item);
+        }
+      });
+
+      mappedLocal.forEach(item => {
+        const key = item.noPerkara || item.id || item.nrpNip;
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          uniqueList.push(item);
+        }
+      });
       
       MOCK_KESATUAN_DATA.forEach(mockItem => {
-        if (!uniqueList.some(item => item.nrpNip === mockItem.nrpNip)) {
+        if (!seen.has(mockItem.nrpNip)) {
+          seen.add(mockItem.nrpNip);
           uniqueList.push(mockItem);
         }
       });
@@ -185,20 +335,39 @@ export default function PerkaraKesatuan() {
 
   // Filtered dataset
   const filteredList = perkaraList.filter(item => {
+    const nameStr = item.namaLengkap || '';
+    const nrpStr = item.nrpNip || '';
+    const jenisStr = item.jenisPerkara || '';
+    const satuanStr = item.satuan || '';
+
+    // Only show cases belonging to the selected unit (with spelling-tolerant matching)
+    const matchesUnit = (() => {
+      if (!satuanStr) return false;
+      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/e/g, '');
+      const cleanSatuan = clean(satuanStr);
+      const cleanSelectedName = clean(selectedKesatuan.nama);
+      const cleanSelectedId = clean(selectedKesatuan.id);
+      const result = cleanSatuan.includes(cleanSelectedName) || 
+                     cleanSelectedName.includes(cleanSatuan) || 
+                     cleanSatuan.includes(cleanSelectedId);
+      console.log(`[matchesUnit] Checking "${item.namaLengkap}" (${satuanStr}) vs Selected (${selectedKesatuan.nama}): ${result}`);
+      return result;
+    })();
+
     const matchesSearch = 
       filterSearch === '' || 
-      item.namaLengkap.toLowerCase().includes(filterSearch.toLowerCase()) || 
-      item.nrpNip.includes(filterSearch);
+      nameStr.toLowerCase().includes(filterSearch.toLowerCase()) || 
+      nrpStr.includes(filterSearch);
 
     const matchesPerkara = 
       filterPerkara === '' || 
-      item.jenisPerkara.toLowerCase().includes(filterPerkara.toLowerCase());
+      jenisStr.toLowerCase().includes(filterPerkara.toLowerCase());
 
     const matchesTahap = 
       filterTahap === '' || 
       item.tahapPenyelesaian === filterTahap;
 
-    return matchesSearch && matchesPerkara && matchesTahap;
+    return matchesUnit && matchesSearch && matchesPerkara && matchesTahap;
   });
 
   // Pagination Configuration
@@ -215,11 +384,19 @@ export default function PerkaraKesatuan() {
 
   // Trigger browser print
   const handlePrint = () => {
+    if (!canPrintUnit) {
+      window.alert("Anda tidak memiliki hak akses untuk mencetak data perkara dari kesatuan lain.");
+      return;
+    }
     window.print();
   };
 
   // Simulate PDF generation progress
   const startExportSimulation = () => {
+    if (!canPrintUnit) {
+      window.alert("Anda tidak memiliki hak akses untuk mencetak data perkara dari kesatuan lain.");
+      return;
+    }
     setExportStep('processing');
     setExportProgress(0);
     const interval = setInterval(() => {
@@ -238,12 +415,21 @@ export default function PerkaraKesatuan() {
     <div className="min-h-screen flex flex-col bg-[#f8fafc] text-slate-800 print:bg-white print:text-black">
       
       {/* 1. TOP NAVBAR (Consistent layout, print hidden) */}
-      <header className="h-16 bg-[#0a1f3d] flex items-center justify-between px-6 text-white shadow-md z-40 select-none print:hidden">
-        <div className="flex items-center gap-12 h-full">
-          <div className="flex items-center gap-3">
+      <header className="sticky top-0 h-16 bg-[#0a1f3d] flex items-center justify-between px-6 text-white shadow-md z-50 select-none print:hidden">
+        <div className="flex items-center gap-4 md:gap-12 h-full min-w-0">
+          <button 
+            type="button"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="md:hidden p-2 -ml-2 text-slate-300 hover:text-white rounded-lg focus:outline-none"
+          >
+            <Menu size={20} />
+          </button>
+
+          <div className="flex items-center gap-3 flex-shrink-0">
             <div className="w-2.5 h-6 bg-amber-500 rounded-full"></div>
-            <Link to="/" className="font-bold text-lg tracking-wide bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent hover:opacity-90">
-              Sistem Informasi Data Perkara
+            <Link to="/" className="font-bold text-sm md:text-lg tracking-wide bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent hover:opacity-90">
+              <span className="inline sm:hidden">SI Data Perkara</span>
+              <span className="hidden sm:inline">Sistem Informasi Data Perkara</span>
             </Link>
           </div>
           
@@ -264,53 +450,130 @@ export default function PerkaraKesatuan() {
           </nav>
         </div>
 
-        {/* Right side spacer */}
-        <div className="w-10"></div>
+        {/* Right side Profile */}
+        {isKesatuanVerified && selectedKesatuan && (
+          <div className="flex items-center gap-2 bg-[#ffffff10] border border-[#ffffff15] rounded-full pl-3 pr-4 py-1.5 max-w-[150px] sm:max-w-xs md:max-w-md select-none flex-shrink-0">
+            <div className="w-6 h-6 rounded-full bg-amber-500 text-[#0a1f3d] flex items-center justify-center shadow-sm flex-shrink-0">
+              <User size={14} className="stroke-[3]" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[8px] sm:text-[9px] font-bold text-slate-300 uppercase tracking-widest leading-none">
+                Akses Satuan
+              </span>
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-white truncate max-w-[80px] sm:max-w-[150px] md:max-w-[200px] leading-tight mt-0.5" title={selectedKesatuan ? selectedKesatuan.nama : ''}>
+                {selectedKesatuan ? selectedKesatuan.nama : ''}
+              </span>
+            </div>
+          </div>
+        )}
       </header>
 
       <div className="flex-1 flex flex-row overflow-hidden">
         
+        {/* Backdrop for mobile */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 md:hidden animate-in fade-in duration-200"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
         {/* 2. SIDEBAR (print hidden) */}
-        <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between select-none print:hidden">
+        <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col justify-between select-none transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } print:hidden`}>
           <div className="py-6 flex flex-col">
             
             {/* Kumdam Emblem and Label */}
-            <div className="flex items-center gap-3 px-6 mb-8">
-              <KumdamLogo />
-              <div className="flex flex-col">
-                <span className="font-bold text-xs text-slate-800 tracking-wider">KUMDAM XVII</span>
-                <span className="text-[10px] text-slate-500 font-bold tracking-widest">CENDERAWASIH</span>
+            <div className="flex items-center justify-between px-6 mb-8">
+              <div className="flex items-center gap-3">
+                <KumdamLogo />
+                <div className="flex flex-col">
+                  <span className="font-bold text-xs text-slate-800 tracking-wider">KUMDAM XVII</span>
+                  <span className="text-[10px] text-slate-500 font-bold tracking-widest">CENDERAWASIH</span>
+                </div>
               </div>
+              <button 
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             {/* Sidebar Menus */}
             <nav className="flex flex-col gap-1 px-3">
+              {/* DESKTOP-ONLY LINK */}
               <Link 
                 to="/" 
-                className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+                className="hidden md:flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
                 <LayoutDashboard size={18} />
                 <span>Dashboard</span>
               </Link>
+
+              {/* MOBILE-ONLY LINK */}
+              <Link 
+                to="/" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+              >
+                <LayoutDashboard size={18} />
+                <span>Halaman Isi</span>
+              </Link>
+
               <Link 
                 to="/input-data" 
+                onClick={() => setIsSidebarOpen(false)}
                 className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
                 <FileText size={18} />
                 <span>Input Data</span>
               </Link>
+
+              {/* DESKTOP-ONLY LINK */}
               <Link 
                 to="/rekap-perkara" 
-                className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+                className="hidden md:flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
                 <BarChart3 size={18} />
                 <span>Rekapitulasi</span>
+              </Link>
+
+              {/* MOBILE-ONLY LINK */}
+              <Link 
+                to="/rekap-perkara" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+              >
+                <BarChart3 size={18} />
+                <span>Data Rekap Perkara</span>
+              </Link>
+
+              <Link 
+                to="/perkara-kesatuan" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold bg-blue-50 text-blue-600 border-l-4 border-blue-600 transition-all"
+              >
+                <Database size={18} />
+                <span>Perkara Kesatuan</span>
+              </Link>
+
+              <Link 
+                to="/perkara-personel" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+              >
+                <User size={18} />
+                <span>Perkara Personel</span>
               </Link>
             </nav>
 
             {/* Tambah Perkara Button */}
             <Link 
               to="/input-data"
+              onClick={() => setIsSidebarOpen(false)}
               className="mx-4 mt-6 py-2.5 px-4 bg-[#0a1d37] hover:bg-[#11315c] text-white rounded-lg flex items-center justify-center gap-2 font-bold text-xs transition-all duration-150 active:scale-[0.98] shadow-md shadow-blue-900/10"
             >
               <Plus size={16} />
@@ -320,10 +583,20 @@ export default function PerkaraKesatuan() {
 
           {/* Sidebar Footer */}
           <div className="border-t border-slate-100 py-4 flex flex-col gap-1">
-            <a href="#" className="flex items-center gap-3 px-6 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors text-sm font-semibold">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                if (window.confirm("Apa anda yakin ingin keluar?")) {
+                  sessionStorage.clear();
+                  window.location.href = '/login';
+                }
+              }}
+              className="flex items-center gap-3 px-6 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors text-sm font-semibold w-full text-left"
+            >
               <LogOut size={16} />
               <span>Keluar</span>
-            </a>
+            </button>
           </div>
         </aside>
 
@@ -337,38 +610,37 @@ export default function PerkaraKesatuan() {
               <ChevronRight size={10} />
               <span>PERKARA KESATUAN</span>
               <ChevronRight size={10} />
-              <span className="text-[#0a1f3d]">KODAM XVII/CENDERAWASIH</span>
+              <span className="text-[#0a1f3d]">{selectedKesatuan.nama}</span>
             </div>
 
-            {/* Header section with print & export buttons */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-              <div>
+              <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-xl font-extrabold text-[#0a1f3d] tracking-tight uppercase print:text-lg">
-                  Data Perkara Kesatuan: KODAM XVII/CENDERAWASIH
+                  Data Perkara Kesatuan:
                 </h1>
-              </div>
-
-              {/* Action Buttons (print hidden) */}
-              <div className="flex items-center gap-3 print:hidden select-none">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsExportOpen(true);
-                    setExportStep('select');
-                  }}
-                  className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2 font-bold text-xs shadow-sm transition active:scale-[0.98]"
-                >
-                  <Download size={14} className="text-slate-500" />
-                  <span>Export PDF</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePrint}
-                  className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg flex items-center gap-2 font-bold text-xs shadow-sm transition active:scale-[0.98]"
-                >
-                  <Printer size={14} className="text-slate-500" />
-                  <span>Cetak</span>
-                </button>
+                {!isKesatuanVerified ? (
+                  <select
+                    value={selectedKesatuan.id}
+                    onChange={(e) => {
+                      const found = KESATUAN_OPTIONS.find(k => k.id === e.target.value);
+                      if (found) {
+                        setSelectedKesatuan(found);
+                      }
+                    }}
+                    className="bg-white border border-slate-250 rounded-lg px-3 py-1.5 text-xs text-[#0a1f3d] font-extrabold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none print:hidden shadow-sm"
+                  >
+                    {KESATUAN_OPTIONS.map(k => (
+                      <option key={k.id} value={k.id}>{k.nama}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-xl font-extrabold text-[#0a1f3d] uppercase print:text-lg">
+                    {selectedKesatuan.nama}
+                  </span>
+                )}
+                <span className="hidden print:inline text-xl font-extrabold text-[#0a1f3d] uppercase">
+                  {selectedKesatuan.nama}
+                </span>
               </div>
             </div>
 
@@ -448,6 +720,24 @@ export default function PerkaraKesatuan() {
 
             {/* 5. CASES TABLE */}
             <section className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden mb-6 print:border-none print:shadow-none">
+              <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between select-none print:hidden">
+                <div className="flex items-center gap-3 border-l-4 border-blue-600 pl-3">
+                  <h3 className="font-extrabold text-xs text-[#0a1f3d] uppercase tracking-wider">
+                    Daftar Perkara Kesatuan
+                  </h3>
+                </div>
+                
+                {canPrintUnit && (
+                  <button
+                    type="button"
+                    onClick={handlePrint}
+                    className="px-3 py-1.5 bg-[#1d6f42] hover:bg-[#155231] text-white rounded-lg flex items-center gap-1.5 font-bold text-[10px] shadow-sm transition active:scale-[0.98]"
+                  >
+                    <Printer size={12} />
+                    <span>Cetak PDF</span>
+                  </button>
+                )}
+              </div>
               
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -467,14 +757,17 @@ export default function PerkaraKesatuan() {
                       // Color schemes matching tahapan
                       let badgeStyle = "border-slate-300 text-slate-500 bg-slate-50";
                       
-                      if (item.tahapPenyelesaian === 'SIDANG') {
+                      const tLower = (item.tahapPenyelesaian || '').toLowerCase();
+                      if (tLower.includes('sidang')) {
                         badgeStyle = "border-blue-400 text-blue-600 bg-blue-50/50";
-                      } else if (item.tahapPenyelesaian === 'PENYIDIKAN') {
+                      } else if (tLower.includes('penyidikan')) {
                         badgeStyle = "border-slate-400 text-slate-500 bg-slate-50";
-                      } else if (item.tahapPenyelesaian === 'PUTUSAN') {
+                      } else if (tLower.includes('putusan') || tLower.includes('selesai')) {
                         badgeStyle = "border-emerald-400 text-emerald-600 bg-emerald-50/50";
-                      } else if (item.tahapPenyelesaian === 'PENUNTUTAN') {
+                      } else if (tLower.includes('penuntutan')) {
                         badgeStyle = "border-blue-500 text-blue-600 bg-blue-50/20";
+                      } else if (tLower.includes('banding') || tLower.includes('kasasi') || tLower.includes('peninjauan')) {
+                        badgeStyle = "border-amber-400 text-amber-600 bg-amber-50/50";
                       }
 
                       return (
@@ -499,8 +792,8 @@ export default function PerkaraKesatuan() {
                               {item.tahapPenyelesaian}
                             </span>
                           </td>
-                          <td className="py-4 px-8 font-semibold text-slate-600 italic">
-                            {item.putusan || '-'}
+                          <td className="py-4 px-8">
+                            {renderPutusanCell(item)}
                           </td>
                         </tr>
                       );
@@ -563,7 +856,7 @@ export default function PerkaraKesatuan() {
           {/* 6. PAGE FOOTER */}
           <footer className="mt-8 pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-slate-400 font-bold tracking-wider select-none">
             <div>
-              KUMDAM XVII | &copy; 2024 Sistem Informasi Data Perkara KUMDAM XVII/Cenderawasih. Hak Cipta Dilindungi.
+              KUMDAM XVII | &copy; 2026 Sistem Informasi Data Perkara KUMDAM XVII/Cenderawasih. Hak Cipta Dilindungi.
             </div>
             <div className="flex items-center gap-4 print:hidden">
               <a href="#" className="hover:text-slate-600 transition-colors">Kebijakan Privasi</a>

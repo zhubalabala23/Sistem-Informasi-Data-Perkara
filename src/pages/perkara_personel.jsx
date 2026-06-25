@@ -10,6 +10,7 @@ import {
   LogOut,
   Search,
   Download,
+  Printer,
   Eye,
   EyeOff,
   User,
@@ -20,7 +21,9 @@ import {
   X,
   FileText as FilePdf,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Menu,
+  Database
 } from 'lucide-react';
 import { db } from '../firebase/config';
 import { collection, getDocs } from 'firebase/firestore';
@@ -32,133 +35,312 @@ const KumdamLogo = () => (
   <img src={logoKumdam} alt="Logo Kumdam XVII Cenderawasih" className="w-10 h-10 object-cover rounded-lg flex-shrink-0 drop-shadow-md border border-black" />
 );
 
-// High-fidelity military officer silhouette SVG
-const MilitaryAvatar = () => (
-  <div className="w-24 h-24 rounded-2xl bg-slate-900 border border-slate-700/80 shadow-md flex items-center justify-center overflow-hidden relative">
-    <div className="absolute top-1 left-1 right-1 h-2 bg-amber-500 rounded-sm"></div>
-    <svg className="w-20 h-20 text-slate-400 mt-3" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2a4 4 0 0 0-4 4v3.25L5 11v8h14v-8l-3-1.75V6a4 4 0 0 0-4-4zm0 2a2 2 0 0 1 2 2v2.75l-2-.5-2 .5V6a2 2 0 0 1 2-2zm-5 8.75l2.5-1.46v2.46L7 14.5v-1.75zm10 0v1.75l-2.5-.75v-2.46l2.5 1.46z" />
-    </svg>
-  </div>
-);
+// Helper to render Putusan content with download links for PDF documents
+const renderPutusanCell = (item) => {
+  const hasTexts = item.pidanaPokok || item.pidanaTambahan || item.noSalinanPutusan || item.noPetikanPutusan || item.noAkteBht;
+  const hasSalinan = !!item.salinanPutusan;
+  const hasPetikan = !!item.petikanPutusan;
+  const hasAkte = !!item.akteBht;
+
+  const downloadFile = (fileUrlOrBase64, filename) => {
+    if (!fileUrlOrBase64) return;
+    if (fileUrlOrBase64.startsWith('http://') || fileUrlOrBase64.startsWith('https://')) {
+      window.open(fileUrlOrBase64, '_blank');
+    } else {
+      const link = document.createElement('a');
+      link.href = fileUrlOrBase64;
+      link.download = filename || 'dokumen.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1 text-[11px] leading-tight max-w-[250px] mx-auto text-left">
+      {hasTexts ? (
+        <div className="text-slate-700 font-medium">
+          {item.pidanaPokok && (
+            <div>
+              <span className="font-bold text-slate-500">Pokok:</span> {item.pidanaPokok}
+            </div>
+          )}
+          {item.pidanaTambahan && (
+            <div className="mt-0.5">
+              <span className="font-bold text-slate-500">Tambahan:</span> {item.pidanaTambahan}
+            </div>
+          )}
+          {item.noSalinanPutusan && (
+            <div className="mt-0.5 text-slate-600 font-semibold">
+              <span className="font-bold text-slate-500">No. Salinan:</span> {item.noSalinanPutusan}
+            </div>
+          )}
+          {item.noPetikanPutusan && (
+            <div className="mt-0.5 text-slate-600 font-semibold">
+              <span className="font-bold text-slate-500">No. Petikan:</span> {item.noPetikanPutusan}
+            </div>
+          )}
+          {item.noAkteBht && (
+            <div className="mt-0.5 text-slate-600 font-semibold">
+              <span className="font-bold text-slate-500">No. Akte BHT:</span> {item.noAkteBht}
+            </div>
+          )}
+        </div>
+      ) : (
+        <span className="text-slate-400 italic font-semibold">{item.putusan || '-'}</span>
+      )}
+      
+      {!hasTexts && item.dokumenPutusan && typeof item.dokumenPutusan === 'string' && !item.dokumenPutusan.startsWith('data:') && (
+        <div className="text-[9px] text-slate-500 mt-1 font-semibold border-t border-slate-100 pt-1 leading-normal">
+          {item.dokumenPutusan}
+        </div>
+      )}
+      
+      {(hasSalinan || hasPetikan || hasAkte) && (
+        <div className="flex flex-wrap gap-1 mt-1.5 select-none" onClick={(e) => e.stopPropagation()}>
+          {hasSalinan && (
+            <button
+              onClick={() => downloadFile(item.salinanPutusan, item.salinanPutusanName || 'Salinan_Putusan.pdf')}
+              className="px-2 py-0.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded text-[9px] font-extrabold transition-colors flex items-center gap-0.5 shadow-sm"
+              title="Download Salinan Putusan"
+            >
+              📄 Salinan
+            </button>
+          )}
+          {hasPetikan && (
+            <button
+              onClick={() => downloadFile(item.petikanPutusan, item.petikanPutusanName || 'Petikan_Putusan.pdf')}
+              className="px-2 py-0.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded text-[9px] font-extrabold transition-colors flex items-center gap-0.5 shadow-sm"
+              title="Download Petikan Putusan"
+            >
+              📄 Petikan
+            </button>
+          )}
+          {hasAkte && (
+            <button
+              onClick={() => downloadFile(item.akteBht, item.akteBhtName || 'Akte_BHT.pdf')}
+              className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded text-[9px] font-extrabold transition-colors flex items-center gap-0.5 shadow-sm"
+              title="Download Akte BHT"
+            >
+              📜 Akte BHT
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// High-fidelity military officer silhouette SVG or dynamic uploaded photo
+const MilitaryAvatar = ({ src }) => {
+  if (src) {
+    return (
+      <div className="w-24 h-24 rounded-2xl bg-white border border-slate-200/80 shadow-md flex items-center justify-center overflow-hidden relative flex-shrink-0">
+        <img src={src} alt="Foto Personel" className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+  return (
+    <div className="w-24 h-24 rounded-2xl bg-slate-900 border border-slate-700/80 shadow-md flex items-center justify-center overflow-hidden relative flex-shrink-0">
+      <div className="absolute top-1 left-1 right-1 h-2 bg-amber-500 rounded-sm"></div>
+      <svg className="w-20 h-20 text-slate-400 mt-3" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2a4 4 0 0 0-4 4v3.25L5 11v8h14v-8l-3-1.75V6a4 4 0 0 0-4-4zm0 2a2 2 0 0 1 2 2v2.75l-2-.5-2 .5V6a2 2 0 0 1 2-2zm-5 8.75l2.5-1.46v2.46L7 14.5v-1.75zm10 0v1.75l-2.5-.75v-2.46l2.5 1.46z" />
+      </svg>
+    </div>
+  );
+};
 
 // Prepopulated static mock data representing personnel and their legal dossiers
-const PERSONNEL_DOSSIERS = [
-  {
-    nrpNip: '12130045670891',
-    namaLengkap: 'ACHMAD SURYA PRATAMA',
-    pangkat: 'MAYOR CHK',
-    jabatan: 'Kasi Hukum Militer',
-    status: 'AKTIF',
-    summary: { total: 4, selesai: 3 },
-    cases: [
-      {
-        id: 'c_p1',
-        perkara: 'Penyalahgunaan Wewenang',
-        nomor: 'REG/142/XII/2023',
-        badge: 'PRIORITAS TINGGI',
-        kronologis: 'Diduga melakukan pembiaran terhadap aktivitas ilegal di wilayah tugas pada tanggal 14 November 2023. Saksi-saksi telah diperiksa di Pomdam XVII. Berkas perkara telah dilimpahkan ke Oditur Militer.',
-        tahapan: 'Persidangan',
-        detailTahapan: 'Sidang Ke-3',
-        putusan: null,
-        dokumenPutusan: null
-      },
-      {
-        id: 'c_p2',
-        perkara: 'Pelanggaran Disiplin Murni',
-        nomor: 'KEP/08/I/2024',
-        badge: null,
-        kronologis: 'Ketidakhadiran tanpa izin (THTI) selama 3 hari kerja berturut-turut pada awal Januari 2024. Alasan kendala transportasi namun tidak melaporkan kepada atasan langsung.',
-        tahapan: 'Selesai',
-        detailTahapan: 'Selesai',
-        putusan: 'Teguran Tertulis',
-        dokumenPutusan: 'SURAT KEPUTUSAN HUKUMAN DISIPLIN MILITER\nNomor: KEP/08/I/2024\n\nMenimbang, bahwa Mayor Chk Achmad Surya Pratama terbukti melanggar disiplin murni dengan mangkir tugas selama 3 hari kerja.\n\nMengingat Pasal 5 UU Disiplin Militer, menjatuhkan hukuman disiplin berupa Teguran Tertulis yang dicatatkan pada Buku Register Personel.'
-      },
-      {
-        id: 'c_p3',
-        perkara: 'Lalu Lintas (Laka Lintas)',
-        nomor: 'LAPA/22/XI/2023',
-        badge: null,
-        kronologis: 'Terlibat kecelakaan lalu lintas di KM 14 Jayapura yang mengakibatkan kerugian materil kendaraan dinas. Penyelesaian dilakukan secara kekeluargaan namun tetap melalui prosedur administrasi internal.',
-        tahapan: 'Selesai',
-        detailTahapan: 'Selesai',
-        putusan: 'Ganti Rugi Kerusakan',
-        dokumenPutusan: 'SURAT PERNYATAAN PENYELESAIAN PERKARA LALU LINTAS\nNomor: LAPA/22/XI/2023\n\nMenyatakan bahwa kerusakan kendaraan dinas Toyota Hilux diganti sepenuhnya oleh personel bersangkutan dengan mekanisme potong tunjangan logistik secara bertahap selama 3 bulan.'
-      },
-      {
-        id: 'c_p4',
-        perkara: 'Sengketa Perdata (Tanah)',
-        nomor: 'PERD/45/IX/2023',
-        badge: null,
-        kronologis: 'Pendampingan hukum dalam sengketa kepemilikan tanah warisan di daerah Sentani. Telah mendapatkan putusan pengadilan tingkat pertama yang memenangkan pihak personel.',
-        tahapan: 'Selesai',
-        detailTahapan: 'Selesai',
-        putusan: 'Menang Gugatan',
-        dokumenPutusan: 'PUTUSAN PENGADILAN NEGERI JAYAPURA\nNomor: PERD/45/IX/2023\n\nMengadili dan menetapkan bahwa sengketa tanah seluas 250 meter persegi di Sentani sah milik Mayor Chk Achmad Surya Pratama berdasarkan sertifikat kepemilikan nomor sert.201/Sentani.'
-      }
-    ],
-    logs: [
-      { waktu: '15:30 WIB', aksi: 'Admin memperbarui Tahapan Perkara pada Perkara NO: REG/142/XII/2023.' },
-      { waktu: '10:15 WIB', aksi: 'Dokumen Putusan diunggah untuk Perkara NO: KEP/08/I/2024.' }
-    ]
-  },
-  {
-    nrpNip: '21098273645',
-    namaLengkap: 'SLAMET RAHARJO, S.H.',
-    pangkat: 'LETKOL CHK',
-    jabatan: 'Kasi Perkara',
-    status: 'AKTIF',
-    summary: { total: 1, selesai: 0 },
-    cases: [
-      {
-        id: 'c_p5',
-        perkara: 'Disiplin Murni',
-        nomor: 'P-102/MIL/2024',
-        badge: 'PRIORITAS',
-        kronologis: 'Terlambat menghadiri apel satuan khusus tanpa alasan sah selama masa siaga pertahanan daerah.',
-        tahapan: 'Persidangan',
-        detailTahapan: 'Sidang Ke-1',
-        putusan: null,
-        dokumenPutusan: null
-      }
-    ],
-    logs: [
-      { waktu: '08:45 WIB', aksi: 'Perkara baru didaftarkan ke sistem dengan Nomor P-102/MIL/2024.' }
-    ]
-  },
-  {
-    nrpNip: '31012938475',
-    namaLengkap: 'BUDI SANTOSO',
-    pangkat: 'SERTU',
-    jabatan: 'Danru 3',
-    status: 'AKTIF',
-    summary: { total: 1, selesai: 1 },
-    cases: [
-      {
-        id: 'c_p6',
-        perkara: 'Narkotika',
-        nomor: 'NARK/301/II/2024',
-        badge: 'PRIORITAS TINGGI',
-        kronologis: 'Penyalahgunaan narkoba golongan I jenis sabu seberat 0.5 gram di area luar asrama militer.',
-        tahapan: 'Selesai',
-        detailTahapan: 'Selesai',
-        putusan: 'Hukuman 2 Tahun',
-        dokumenPutusan: 'PUTUSAN PENGADILAN MILITER JAYAPURA\nNomor: NARK/301/II/2024\n\nMenjatuhkan pidana penjara selama 2 (dua) tahun dan denda sebesar Rp 10.000.000,- subsidair 3 bulan kurungan kepada Sertu Budi Santoso atas kepemilikan narkoba golongan I.'
-      }
-    ],
-    logs: [
-      { waktu: '11:20 WIB', aksi: 'Dokumen Putusan Sidang Militer diunggah oleh Admin.' }
-    ]
-  }
-];
+const PERSONNEL_DOSSIERS = [];
+
+const DEFAULT_DOSSIER = {
+  nrpNip: '-',
+  namaLengkap: 'Tidak Ada Data',
+  pangkat: '-',
+  jabatan: '-',
+  status: 'NON-AKTIF',
+  fotoPersonel: null,
+  summary: { total: 0, selesai: 0 },
+  cases: [],
+  logs: []
+};
 
 export default function PerkaraPersonel() {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
 
-  // State
-  const [selectedNrp, setSelectedNrp] = useState('12130045670891');
-  const [currentDossier, setCurrentDossier] = useState(PERSONNEL_DOSSIERS[0]);
+  // State - pre-initialized from LocalStorage cache for 0ms rendering
+  const [dossiers, setDossiers] = useState(() => {
+    const localData = localStorage.getItem('perkara_data');
+    const localList = localData ? JSON.parse(localData) : [];
+    const baseDossiers = JSON.parse(JSON.stringify(PERSONNEL_DOSSIERS));
+    
+    localList.forEach(caseItem => {
+      if (!caseItem.nrpNip) return;
+      let dossier = baseDossiers.find(d => d.nrpNip === caseItem.nrpNip);
+      
+      const formattedCase = {
+        id: caseItem.id || caseItem.noPerkara,
+        perkara: caseItem.jenisPerkara || 'Perkara',
+        nomor: caseItem.noPerkara,
+        badge: caseItem.status === 'SELESAI' ? 'PRIORITAS RENDAH' : 'PRIORITAS TINGGI',
+        kronologis: caseItem.kronologis || 'Detail perkara sedang diproses.',
+        tahapan: caseItem.tahapPenyelesaian || (caseItem.status === 'SELESAI' ? 'Selesai' : 'Proses'),
+        detailTahapan: caseItem.tahapPenyelesaian || 'Penyidikan',
+        putusan: caseItem.putusan || (caseItem.status === 'SELESAI' ? 'Putusan Selesai' : null),
+        dokumenPutusan: caseItem.dokumenPutusan || caseItem.putusan || null,
+        pidanaPokok: caseItem.pidanaPokok || '',
+        pidanaTambahan: caseItem.pidanaTambahan || '',
+        noSalinanPutusan: caseItem.noSalinanPutusan || '',
+        noPetikanPutusan: caseItem.noPetikanPutusan || '',
+        noAkteBht: caseItem.noAkteBht || '',
+        salinanPutusan: caseItem.salinanPutusan || null,
+        salinanPutusanName: caseItem.salinanPutusanName || '',
+        petikanPutusan: caseItem.petikanPutusan || null,
+        petikanPutusanName: caseItem.petikanPutusanName || '',
+        akteBht: caseItem.akteBht || null,
+        akteBhtName: caseItem.akteBhtName || '',
+        fileUrl: caseItem.fileUrl || null,
+        fileName: caseItem.fileName || '',
+        status: caseItem.status
+      };
+
+      if (dossier) {
+        if (!dossier.cases.some(c => c.nomor === caseItem.noPerkara)) {
+          dossier.cases.push(formattedCase);
+        }
+        if (caseItem.fotoPersonel) {
+          dossier.fotoPersonel = caseItem.fotoPersonel;
+        }
+        if (!dossier.satuan && caseItem.satuan) {
+          dossier.satuan = caseItem.satuan;
+        }
+      } else {
+        const newDossier = {
+          nrpNip: caseItem.nrpNip,
+          namaLengkap: caseItem.namaLengkap || 'Nama Tidak Diketahui',
+          pangkat: caseItem.pangkat || 'Pangkat -',
+          jabatan: caseItem.jabatan || 'Jabatan -',
+          satuan: caseItem.satuan || 'POMDAM XVII/CENDERAWASIH',
+          status: 'AKTIF',
+          fotoPersonel: caseItem.fotoPersonel || null,
+          summary: { total: 0, selesai: 0 },
+          cases: [formattedCase],
+          logs: [
+            { waktu: 'Baru', aksi: `Perkara ${caseItem.noPerkara} terdaftar.` }
+          ]
+        };
+        baseDossiers.push(newDossier);
+      }
+    });
+
+    baseDossiers.forEach(d => {
+      d.summary.total = d.cases.length;
+      d.summary.selesai = d.cases.filter(c => {
+        const t = (c.tahapan || '').toLowerCase();
+        return t.includes('selesai') || t.includes('putusan') || c.status === 'SELESAI';
+      }).length;
+    });
+
+    return baseDossiers;
+  });
+
+  const [selectedNrp, setSelectedNrp] = useState(() => {
+    const localData = localStorage.getItem('perkara_data');
+    const localList = localData ? JSON.parse(localData) : [];
+    if (localList.length > 0 && localList[0].nrpNip) {
+      return localList[0].nrpNip;
+    }
+    return '';
+  });
+
+  const [currentDossier, setCurrentDossier] = useState(() => {
+    const localData = localStorage.getItem('perkara_data');
+    const localList = localData ? JSON.parse(localData) : [];
+    const baseDossiers = JSON.parse(JSON.stringify(PERSONNEL_DOSSIERS));
+    
+    localList.forEach(caseItem => {
+      if (!caseItem.nrpNip) return;
+      let dossier = baseDossiers.find(d => d.nrpNip === caseItem.nrpNip);
+      const formattedCase = {
+        id: caseItem.id || caseItem.noPerkara,
+        perkara: caseItem.jenisPerkara || 'Perkara',
+        nomor: caseItem.noPerkara,
+        badge: caseItem.status === 'SELESAI' ? 'PRIORITAS RENDAH' : 'PRIORITAS TINGGI',
+        kronologis: caseItem.kronologis || 'Detail perkara sedang diproses.',
+        tahapan: caseItem.tahapPenyelesaian || (caseItem.status === 'SELESAI' ? 'Selesai' : 'Proses'),
+        detailTahapan: caseItem.tahapPenyelesaian || 'Penyidikan',
+        putusan: caseItem.putusan || (caseItem.status === 'SELESAI' ? 'Putusan Selesai' : null),
+        dokumenPutusan: caseItem.dokumenPutusan || caseItem.putusan || null,
+        pidanaPokok: caseItem.pidanaPokok || '',
+        pidanaTambahan: caseItem.pidanaTambahan || '',
+        salinanPutusan: caseItem.salinanPutusan || null,
+        salinanPutusanName: caseItem.salinanPutusanName || '',
+        petikanPutusan: caseItem.petikanPutusan || null,
+        petikanPutusanName: caseItem.petikanPutusanName || '',
+        akteBht: caseItem.akteBht || null,
+        akteBhtName: caseItem.akteBhtName || ''
+      };
+
+      if (dossier) {
+        if (!dossier.cases.some(c => c.nomor === caseItem.noPerkara)) {
+          dossier.cases.push(formattedCase);
+        }
+        if (!dossier.satuan && caseItem.satuan) {
+          dossier.satuan = caseItem.satuan;
+        }
+      } else {
+        const newDossier = {
+          nrpNip: caseItem.nrpNip,
+          namaLengkap: caseItem.namaLengkap || 'Nama Tidak Diketahui',
+          pangkat: caseItem.pangkat || 'Pangkat -',
+          jabatan: caseItem.jabatan || 'Jabatan -',
+          satuan: caseItem.satuan || 'POMDAM XVII/CENDERAWASIH',
+          status: 'AKTIF',
+          fotoPersonel: caseItem.fotoPersonel || null,
+          summary: { total: 0, selesai: 0 },
+          cases: [formattedCase],
+          logs: [
+            { waktu: 'Baru', aksi: `Perkara ${caseItem.noPerkara} terdaftar.` }
+          ]
+        };
+        baseDossiers.push(newDossier);
+      }
+    });
+
+    baseDossiers.forEach(d => {
+      d.summary.total = d.cases.length;
+      d.summary.selesai = d.cases.filter(c => {
+        const t = (c.tahapan || '').toLowerCase();
+        return t.includes('selesai') || t.includes('putusan');
+      }).length;
+    });
+
+    const targetNrp = (localList.length > 0 && localList[0].nrpNip) ? localList[0].nrpNip : '';
+    return baseDossiers.find(d => d.nrpNip === targetNrp) || baseDossiers[0] || DEFAULT_DOSSIER;
+  });
   const [stageFilter, setStageFilter] = useState('');
+  
+  const loggedInKesatuan = (() => {
+    const saved = sessionStorage.getItem('selected_kesatuan');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return null;
+  })();
+  const isKesatuanVerified = sessionStorage.getItem('is_kesatuan_verified') === 'true';
+
+  // Permission helper: general admin can print any, specific kesatuan can only print their own
+  const canPrintDossier = !isKesatuanVerified || (
+    loggedInKesatuan && currentDossier && (() => {
+      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/e/g, '');
+      return clean(currentDossier.satuan) === clean(loggedInKesatuan.nama) || clean(currentDossier.satuan).includes(clean(loggedInKesatuan.id)) || clean(loggedInKesatuan.nama).includes(clean(currentDossier.satuan));
+    })()
+  );
   
   // Modals state
   const [verdictDoc, setVerdictDoc] = useState(null);
@@ -166,13 +348,157 @@ export default function PerkaraPersonel() {
   const [exportProgress, setExportProgress] = useState(0);
   const [exportStep, setExportStep] = useState('select'); // select, processing, done
 
+  const [printTarget, setPrintTarget] = useState(null); // 'perorangan' or null
+
+  const handlePrint = () => {
+    if (!canPrintDossier) {
+      window.alert("Anda tidak memiliki hak akses untuk mencetak data perkara dari kesatuan lain.");
+      return;
+    }
+    setPrintTarget('perorangan');
+    setTimeout(() => {
+      window.print();
+      setPrintTarget(null);
+    }, 150);
+  };
+
+  // Load Firestore + LocalStorage cases and build dynamic dossiers
+  useEffect(() => {
+    const loadDynamicData = async () => {
+      let firestoreList = [];
+      try {
+        const querySnapshot = await getDocs(collection(db, 'perkara'));
+        querySnapshot.forEach((doc) => {
+          firestoreList.push({ id: doc.id, ...doc.data() });
+        });
+      } catch (error) {
+        console.warn("Could not fetch Firestore data. Using LocalStorage/Mock fallback.", error);
+      }
+
+      // Read local storage
+      const localData = localStorage.getItem('perkara_data');
+      const localList = localData ? JSON.parse(localData) : [];
+
+      // Combine and deduplicate cases by noPerkara/id
+      const combinedCases = [];
+      const seen = new Set();
+      firestoreList.forEach(item => {
+        const key = item.noPerkara || item.id;
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          combinedCases.push(item);
+        }
+      });
+
+      localList.forEach(item => {
+        const key = item.noPerkara || item.id;
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          combinedCases.push(item);
+        }
+      });
+      
+      // Let's copy the static mock dossiers
+      const baseDossiers = JSON.parse(JSON.stringify(PERSONNEL_DOSSIERS));
+      
+      combinedCases.forEach(caseItem => {
+        if (!caseItem.nrpNip) return; // skip if no nrpNip
+        
+        // Find existing dossier in baseDossiers
+        let dossier = baseDossiers.find(d => d.nrpNip === caseItem.nrpNip);
+        
+        // Format caseItem to match the dossier's case schema
+        const formattedCase = {
+          id: caseItem.id || caseItem.noPerkara,
+          perkara: caseItem.jenisPerkara || 'Perkara',
+          nomor: caseItem.noPerkara,
+          badge: caseItem.status === 'SELESAI' ? 'PRIORITAS RENDAH' : 'PRIORITAS TINGGI',
+          kronologis: caseItem.kronologis || 'Detail perkara sedang diproses.',
+          tahapan: caseItem.tahapPenyelesaian || (caseItem.status === 'SELESAI' ? 'Selesai' : 'Proses'),
+          detailTahapan: caseItem.tahapPenyelesaian || 'Penyidikan',
+          putusan: caseItem.putusan || (caseItem.status === 'SELESAI' ? 'Putusan Selesai' : null),
+          dokumenPutusan: caseItem.dokumenPutusan || caseItem.putusan || null,
+          pidanaPokok: caseItem.pidanaPokok || '',
+          pidanaTambahan: caseItem.pidanaTambahan || '',
+          noSalinanPutusan: caseItem.noSalinanPutusan || '',
+          noPetikanPutusan: caseItem.noPetikanPutusan || '',
+          noAkteBht: caseItem.noAkteBht || '',
+          salinanPutusan: caseItem.salinanPutusan || null,
+          salinanPutusanName: caseItem.salinanPutusanName || '',
+          petikanPutusan: caseItem.petikanPutusan || null,
+          petikanPutusanName: caseItem.petikanPutusanName || '',
+          akteBht: caseItem.akteBht || null,
+          akteBhtName: caseItem.akteBhtName || '',
+          fileUrl: caseItem.fileUrl || null,
+          fileName: caseItem.fileName || '',
+          status: caseItem.status
+        };
+        
+        if (dossier) {
+          // If the dossier exists, check if the case is already added
+          if (!dossier.cases.some(c => c.nomor === caseItem.noPerkara)) {
+            dossier.cases.push(formattedCase);
+          }
+          // If the caseItem has a photo, update the dossier's photo
+          if (caseItem.fotoPersonel) {
+            dossier.fotoPersonel = caseItem.fotoPersonel;
+          }
+          if (!dossier.satuan && caseItem.satuan) {
+            dossier.satuan = caseItem.satuan;
+          }
+        } else {
+          // Create new dossier
+          const newDossier = {
+            nrpNip: caseItem.nrpNip,
+            namaLengkap: caseItem.namaLengkap || 'Nama Tidak Diketahui',
+            pangkat: caseItem.pangkat || 'Pangkat -',
+            jabatan: caseItem.jabatan || 'Jabatan -',
+            satuan: caseItem.satuan || 'POMDAM XVII/CENDERAWASIH',
+            status: 'AKTIF',
+            fotoPersonel: caseItem.fotoPersonel || null,
+            summary: { total: 0, selesai: 0 },
+            cases: [formattedCase],
+            logs: [
+              { waktu: 'Baru', aksi: `Perkara ${caseItem.noPerkara} terdaftar.` }
+            ]
+          };
+          baseDossiers.push(newDossier);
+        }
+      });
+      
+      // Recalculate summaries for all dossiers
+      baseDossiers.forEach(d => {
+        d.summary.total = d.cases.length;
+        d.summary.selesai = d.cases.filter(c => {
+          const t = (c.tahapan || '').toLowerCase();
+          return t.includes('selesai') || t.includes('putusan') || c.status === 'SELESAI';
+        }).length;
+      });
+
+      setDossiers(baseDossiers);
+    };
+
+    loadDynamicData();
+  }, []);
+
+  // Update selected NRP if it is no longer valid or unset
+  useEffect(() => {
+    if (dossiers.length > 0) {
+      if (!selectedNrp || !dossiers.some(d => d.nrpNip === selectedNrp)) {
+        setSelectedNrp(dossiers[0].nrpNip);
+      }
+    }
+  }, [dossiers, selectedNrp]);
+
   // Load Dossier based on chosen NRP selection
   useEffect(() => {
-    const dossier = PERSONNEL_DOSSIERS.find(d => d.nrpNip === selectedNrp);
+    const dossier = dossiers.find(d => d.nrpNip === selectedNrp);
     if (dossier) {
       setCurrentDossier(dossier);
+    } else {
+      setCurrentDossier(DEFAULT_DOSSIER);
     }
-  }, [selectedNrp]);
+  }, [selectedNrp, dossiers]);
 
   // Handle personnel list search/select option
   const handleSelectNrp = (e) => {
@@ -187,6 +513,10 @@ export default function PerkaraPersonel() {
 
   // Export Simulation
   const startExportSimulation = () => {
+    if (!canPrintDossier) {
+      window.alert("Anda tidak memiliki hak akses untuk mencetak data perkara dari kesatuan lain.");
+      return;
+    }
     setExportStep('processing');
     setExportProgress(0);
     const interval = setInterval(() => {
@@ -203,14 +533,77 @@ export default function PerkaraPersonel() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc] text-slate-800">
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          ${printTarget ? `
+            body, html {
+              background: white !important;
+              color: black !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+            header, aside, select, button, .print\\:hidden, [data-print-hide], nav {
+              display: none !important;
+            }
+            section {
+              display: none !important;
+            }
+            section.print-target-perorangan {
+              display: block !important;
+              border: none !important;
+              box-shadow: none !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              width: 100% !important;
+            }
+            section.print-target-perorangan .print-header-bar {
+              display: block !important;
+              margin-bottom: 20px !important;
+            }
+            section.print-target-perorangan table {
+              border-collapse: collapse !important;
+              width: 100% !important;
+              margin-top: 15px !important;
+            }
+            section.print-target-perorangan th, 
+            section.print-target-perorangan td {
+              border: 1px solid #000000 !important;
+              padding: 10px 8px !important;
+              text-align: left !important;
+              color: black !important;
+              font-size: 11px !important;
+            }
+            section.print-target-perorangan th {
+              background-color: #f1f5f9 !important;
+              font-weight: bold !important;
+              text-align: center !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+          ` : ''}
+          @page {
+            size: landscape;
+            margin: 1.5cm;
+          }
+        }
+      `}} />
       
       {/* 1. TOP NAVBAR (Consistent design layout) */}
-      <header className="h-16 bg-[#0a1f3d] flex items-center justify-between px-6 text-white shadow-md z-40 select-none print:hidden">
-        <div className="flex items-center gap-12 h-full">
-          <div className="flex items-center gap-3">
+      <header className="sticky top-0 h-16 bg-[#0a1f3d] flex items-center justify-between px-6 text-white shadow-md z-50 select-none print:hidden">
+        <div className="flex items-center gap-4 md:gap-12 h-full min-w-0">
+          <button 
+            type="button"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="md:hidden p-2 -ml-2 text-slate-300 hover:text-white rounded-lg focus:outline-none"
+          >
+            <Menu size={20} />
+          </button>
+
+          <div className="flex items-center gap-3 flex-shrink-0">
             <div className="w-2.5 h-6 bg-amber-500 rounded-full"></div>
-            <Link to="/" className="font-bold text-lg tracking-wide bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent hover:opacity-90">
-              Sistem Informasi Data Perkara
+            <Link to="/" className="font-bold text-sm md:text-lg tracking-wide bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent hover:opacity-90">
+              <span className="inline sm:hidden">SI Data Perkara</span>
+              <span className="hidden sm:inline">Sistem Informasi Data Perkara</span>
             </Link>
           </div>
           
@@ -231,62 +624,131 @@ export default function PerkaraPersonel() {
           </nav>
         </div>
 
-        {/* User profile dropdown box */}
-        <div className="flex items-center gap-3 select-none">
-          <div className="h-8 w-px bg-slate-700/80"></div>
-          <div className="flex items-center gap-2 bg-slate-900/40 py-1.5 px-3 rounded-lg border border-slate-700/40">
-            <div className="w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center text-slate-900 text-[10px] font-bold">
-              AK
+        {/* Right side Profile */}
+        {isKesatuanVerified && loggedInKesatuan && (
+          <div className="flex items-center gap-2 bg-[#ffffff10] border border-[#ffffff15] rounded-full pl-3 pr-4 py-1.5 max-w-[150px] sm:max-w-xs md:max-w-md select-none flex-shrink-0">
+            <div className="w-6 h-6 rounded-full bg-amber-500 text-[#0a1f3d] flex items-center justify-center shadow-sm flex-shrink-0">
+              <User size={14} className="stroke-[3]" />
             </div>
-            <span className="text-xs font-bold text-slate-200">ADMIN KUMDAM</span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[8px] sm:text-[9px] font-bold text-slate-300 uppercase tracking-widest leading-none">
+                Akses Satuan
+              </span>
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-white truncate max-w-[80px] sm:max-w-[150px] md:max-w-[200px] leading-tight mt-0.5" title={loggedInKesatuan ? loggedInKesatuan.nama : ''}>
+                {loggedInKesatuan ? loggedInKesatuan.nama : ''}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
       {/* Main layout container wrapping Sidebar and Main Content */}
       <div className="flex-1 flex flex-row overflow-hidden">
         
+        {/* Backdrop for mobile */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 md:hidden animate-in fade-in duration-200"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
         {/* 2. SIDEBAR (print hidden) */}
-        <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between select-none print:hidden">
+        <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col justify-between select-none transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } print:hidden`}>
           <div className="py-6 flex flex-col">
             
             {/* Kumdam Emblem and Label */}
-            <div className="flex items-center gap-3 px-6 mb-8">
-              <KumdamLogo />
-              <div className="flex flex-col">
-                <span className="font-bold text-xs text-slate-800 tracking-wider">KUMDAM XVII</span>
-                <span className="text-[10px] text-slate-500 font-bold tracking-widest">CENDERAWASIH</span>
+            <div className="flex items-center justify-between px-6 mb-8">
+              <div className="flex items-center gap-3">
+                <KumdamLogo />
+                <div className="flex flex-col">
+                  <span className="font-bold text-xs text-slate-800 tracking-wider">KUMDAM XVII</span>
+                  <span className="text-[10px] text-slate-500 font-bold tracking-widest">CENDERAWASIH</span>
+                </div>
               </div>
+              <button 
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             {/* Sidebar Menus */}
             <nav className="flex flex-col gap-1 px-3">
+              {/* DESKTOP-ONLY LINK */}
               <Link 
                 to="/" 
-                className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+                className="hidden md:flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
                 <LayoutDashboard size={18} />
                 <span>Dashboard</span>
               </Link>
+
+              {/* MOBILE-ONLY LINK */}
+              <Link 
+                to="/" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+              >
+                <LayoutDashboard size={18} />
+                <span>Halaman Isi</span>
+              </Link>
+
               <Link 
                 to="/input-data" 
+                onClick={() => setIsSidebarOpen(false)}
                 className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
                 <FileText size={18} />
                 <span>Input Data</span>
               </Link>
+
+              {/* DESKTOP-ONLY LINK */}
               <Link 
                 to="/rekap-perkara" 
-                className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+                className="hidden md:flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
                 <BarChart3 size={18} />
                 <span>Rekapitulasi</span>
+              </Link>
+
+              {/* MOBILE-ONLY LINK */}
+              <Link 
+                to="/rekap-perkara" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+              >
+                <BarChart3 size={18} />
+                <span>Data Rekap Perkara</span>
+              </Link>
+
+              <Link 
+                to="/perkara-kesatuan" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+              >
+                <Database size={18} />
+                <span>Perkara Kesatuan</span>
+              </Link>
+
+              <Link 
+                to="/perkara-personel" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold bg-blue-50 text-blue-600 border-l-4 border-blue-600 transition-all"
+              >
+                <User size={18} />
+                <span>Perkara Personel</span>
               </Link>
             </nav>
 
             {/* Tambah Perkara Button */}
             <Link 
               to="/input-data"
+              onClick={() => setIsSidebarOpen(false)}
               className="mx-4 mt-6 py-2.5 px-4 bg-[#0a1d37] hover:bg-[#11315c] text-white rounded-lg flex items-center justify-center gap-2 font-bold text-xs transition-all duration-150 active:scale-[0.98] shadow-md shadow-blue-900/10"
             >
               <Plus size={16} />
@@ -296,10 +758,20 @@ export default function PerkaraPersonel() {
 
           {/* Sidebar Footer */}
           <div className="border-t border-slate-100 py-4 flex flex-col gap-1">
-            <a href="#" className="flex items-center gap-3 px-6 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors text-sm font-semibold">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                if (window.confirm("Apa anda yakin ingin keluar?")) {
+                  sessionStorage.clear();
+                  window.location.href = '/login';
+                }
+              }}
+              className="flex items-center gap-3 px-6 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors text-sm font-semibold w-full text-left"
+            >
               <LogOut size={16} />
               <span>Keluar</span>
-            </a>
+            </button>
           </div>
         </aside>
 
@@ -320,7 +792,7 @@ export default function PerkaraPersonel() {
                 onChange={handleSelectNrp}
                 className="w-full sm:w-80 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
               >
-                {PERSONNEL_DOSSIERS.map(d => (
+                {dossiers.map(d => (
                   <option key={d.nrpNip} value={d.nrpNip}>
                     {d.pangkat} {d.namaLengkap} - {d.nrpNip}
                   </option>
@@ -328,84 +800,59 @@ export default function PerkaraPersonel() {
               </select>
             </div>
 
-            {/* GRID: Profile card and Ringkasan Legal */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Dossier Profil Card (Full Width) */}
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 flex flex-col md:flex-row gap-6 items-center md:items-start select-none">
+              <MilitaryAvatar src={currentDossier?.fotoPersonel} />
               
-              {/* Left card: Dossier Profil */}
-              <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 flex flex-col md:flex-row gap-6 items-center md:items-start select-none">
-                <MilitaryAvatar />
-                
-                <div className="flex-1 flex flex-col justify-between h-full min-w-0">
-                  <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
-                    <h2 className="font-extrabold text-[#0a1f3d] text-base tracking-tight uppercase">
-                      Data Rincian Perkara Personel
-                    </h2>
-                    <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 font-bold text-[9px] uppercase tracking-widest rounded-full border border-blue-100">
-                      {currentDossier.status}
-                    </span>
-                  </div>
+              <div className="flex-1 flex flex-col justify-between h-full min-w-0">
+                <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+                  <h2 className="font-extrabold text-[#0a1f3d] text-base tracking-tight uppercase">
+                    Data Rincian Perkara Personel
+                  </h2>
+                  <span className="px-2.5 py-0.5 bg-blue-50 text-blue-700 font-bold text-[9px] uppercase tracking-widest rounded-full border border-blue-100">
+                    {currentDossier.status}
+                  </span>
+                </div>
 
-                  <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-xs mb-2">
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Nama Personel</span>
-                      <span className="font-extrabold text-slate-800 tracking-wide uppercase truncate block">{currentDossier.namaLengkap}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">NRP / NIP</span>
-                      <span className="font-bold text-slate-700 font-mono block">{currentDossier.nrpNip}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Pangkat</span>
-                      <span className="font-semibold text-slate-700 block">{currentDossier.pangkat}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Jabatan / Perorangan</span>
-                      <span className="font-semibold text-slate-700 block">{currentDossier.jabatan}</span>
-                    </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-4 gap-x-6 text-xs mb-2">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Nama Personel</span>
+                    <span className="font-extrabold text-slate-800 tracking-wide uppercase truncate block">{currentDossier.namaLengkap}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">NRP / NIP</span>
+                    <span className="font-bold text-slate-700 font-mono block">{currentDossier.nrpNip}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Pangkat</span>
+                    <span className="font-semibold text-slate-700 block">{currentDossier.pangkat}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">Jabatan / Perorangan</span>
+                    <span className="font-semibold text-slate-700 block">{currentDossier.jabatan}</span>
                   </div>
                 </div>
               </div>
-
-              {/* Right card: Ringkasan Legal */}
-              <div className="bg-[#0a1f3d] text-white rounded-xl border border-slate-700/80 shadow-md p-6 flex flex-col justify-between select-none">
-                <div>
-                  <div className="flex items-center gap-2 pb-4 border-b border-slate-700/80 mb-4">
-                    <div className="w-1.5 h-4 bg-amber-500 rounded-full"></div>
-                    <h3 className="font-bold text-sm uppercase tracking-wider">Ringkasan Legal</h3>
-                  </div>
-
-                  <div className="flex flex-col gap-3 text-xs">
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-slate-300 font-medium">Total Perkara</span>
-                      <span className="text-lg font-extrabold font-mono text-amber-400">
-                        {String(currentDossier.summary.total).padStart(2, '0')}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center py-1">
-                      <span className="text-slate-300 font-medium">Selesai (Putusan)</span>
-                      <span className="text-lg font-extrabold font-mono text-emerald-400">
-                        {String(currentDossier.summary.selesai).padStart(2, '0')}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => navigate('/input-data')}
-                  className="mt-6 w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg flex items-center justify-center gap-2 font-bold text-xs tracking-wider transition active:scale-[0.98] shadow-sm shadow-blue-500/10"
-                >
-                  <Plus size={15} />
-                  <span>TAMBAH PERKARA BARU</span>
-                </button>
-              </div>
-
             </div>
 
             {/* Filter and Dossier Table section */}
-            <section className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6">
+            <section className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 print-target-perorangan">
               
+              {/* Print-Only Header Block matching Table 1 */}
+              <div className="hidden print:block text-left mb-6">
+                <h1 className="text-xl font-black text-slate-900 tracking-tight uppercase">
+                  REKAP DATA PERKARA {currentDossier.satuan ? currentDossier.satuan.toUpperCase() : 'KUMDAM XVII/CENDERAWASIH'}
+                </h1>
+                <div className="mt-3">
+                  <h2 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">
+                    2. DATA RINCIAN PERKARA/PERSONEL ( {(currentDossier.namaLengkap || '').toUpperCase()} / {currentDossier.nrpNip} / {(currentDossier.pangkat || '').toUpperCase()} / {(currentDossier.jabatan || '').toUpperCase()} )/PERORANGAN
+                  </h2>
+                </div>
+                <div className="h-[2px] bg-slate-800 mt-4"></div>
+              </div>
+
               {/* Table Header and filter select */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-4 select-none">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-4 select-none print:hidden">
                 <div className="flex items-center gap-3">
                   <select 
                     value={stageFilter}
@@ -417,16 +864,16 @@ export default function PerkaraPersonel() {
                     <option value="Selesai">Selesai</option>
                   </select>
 
-                  <button
-                    onClick={() => {
-                      setIsExportOpen(true);
-                      setExportStep('select');
-                    }}
-                    className="p-1.5 border border-slate-200 hover:bg-slate-50 rounded-lg transition active:scale-[0.95] text-slate-500"
-                    title="Download Dossier PDF"
-                  >
-                    <Download size={15} />
-                  </button>
+                  {canPrintDossier && (
+                    <button
+                      type="button"
+                      onClick={handlePrint}
+                      className="px-3 py-1.5 bg-[#1d6f42] hover:bg-[#155231] text-white rounded-lg flex items-center gap-1.5 font-bold text-[10px] shadow-sm transition active:scale-[0.98]"
+                    >
+                      <Printer size={12} />
+                      <span>Cetak PDF</span>
+                    </button>
+                  )}
                 </div>
 
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
@@ -464,14 +911,29 @@ export default function PerkaraPersonel() {
 
                         {/* Kronologis Column */}
                         <td className="py-4 px-4 text-slate-500 leading-relaxed font-medium">
-                          {item.kronologis}
+                          <div>{item.kronologis}</div>
+                          {item.fileUrl && (
+                            <button
+                              onClick={() => downloadFile(item.fileUrl, item.fileName || 'dokumen_kronologis.pdf')}
+                              className="mt-2 px-2 py-1 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded text-[9px] font-extrabold transition-colors flex items-center gap-1 shadow-sm active:scale-[0.98] print:hidden"
+                              title="Unduh Berkas Kronologis"
+                            >
+                              📄 Berkas Kronologis
+                            </button>
+                          )}
                         </td>
 
                         {/* Tahapan Column */}
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-1.5 select-none">
                             <span className={`w-1.5 h-1.5 rounded-full ${
-                              item.tahapan === 'Selesai' ? 'bg-slate-700' : 'bg-blue-500'
+                              (item.tahapan || '').toLowerCase().includes('selesai') || (item.tahapan || '').toLowerCase().includes('putusan')
+                                ? 'bg-emerald-500'
+                                : (item.tahapan || '').toLowerCase().includes('banding') || (item.tahapan || '').toLowerCase().includes('kasasi') || (item.tahapan || '').toLowerCase().includes('peninjauan')
+                                  ? 'bg-amber-500'
+                                  : (item.tahapan || '').toLowerCase().includes('sidang') || (item.tahapan || '').toLowerCase().includes('penuntutan')
+                                    ? 'bg-blue-500'
+                                    : 'bg-slate-400'
                             }`}></span>
                             <div className="flex flex-col">
                               <span className="font-bold text-slate-700">{item.tahapan}</span>
@@ -483,20 +945,8 @@ export default function PerkaraPersonel() {
                         </td>
 
                         {/* Putusan Column */}
-                        <td className="py-4 px-6 text-center">
-                          {item.dokumenPutusan ? (
-                            <button
-                              onClick={() => setVerdictDoc(item)}
-                              className="py-1 px-3 bg-[#0a1f3d] hover:bg-[#122e54] text-white rounded font-bold text-[9px] uppercase tracking-wider flex items-center justify-center gap-1 mx-auto transition active:scale-[0.95]"
-                            >
-                              <FileText size={10} />
-                              <span>LIHAT</span>
-                            </button>
-                          ) : (
-                            <div className="text-slate-300 flex items-center justify-center" title="Dokumen Putusan belum tersedia">
-                              <EyeOff size={16} />
-                            </div>
-                          )}
+                        <td className="py-4 px-6">
+                          {renderPutusanCell(item)}
                         </td>
 
                       </tr>
@@ -520,24 +970,7 @@ export default function PerkaraPersonel() {
 
             </section>
 
-            {/* Bottom activity log timeline */}
-            <section className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 select-none">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-4">
-                <Clock size={16} className="text-slate-500" />
-                <h4 className="font-extrabold text-xs text-[#0a1f3d] uppercase tracking-wider">
-                  Log Aktivitas Terakhir
-                </h4>
-              </div>
 
-              <div className="flex flex-col gap-3 text-xs">
-                {currentDossier.logs.map((log, idx) => (
-                  <div key={idx} className="flex items-start gap-4">
-                    <span className="text-[10px] font-bold text-slate-400 font-mono whitespace-nowrap mt-0.5">{log.waktu}</span>
-                    <span className="text-slate-600 font-semibold">{log.aksi}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
 
           </div>
 
@@ -545,7 +978,7 @@ export default function PerkaraPersonel() {
           <footer className="mt-8 pt-6 border-t border-slate-200 py-6 select-none">
             <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-[10px] text-slate-400 font-bold tracking-wider uppercase">
               <div>
-                &copy; 2024 Sistem Informasi Data Perkara KUMDAM XVII/Cenderawasih. Hak Cipta Dilindungi.
+                &copy; 2026 Sistem Informasi Data Perkara KUMDAM XVII/Cenderawasih. Hak Cipta Dilindungi.
               </div>
               <div className="flex items-center gap-4">
                 <a href="#" className="hover:text-slate-600 transition-colors">Kebijakan Privasi</a>
@@ -592,77 +1025,7 @@ export default function PerkaraPersonel() {
 
           </div>
         </div>
-      )}
-
-      {/* EXPORT LOADING MODAL */}
-      {isExportOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200 select-none">
-          <div className="w-full max-w-sm bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
-            
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <span className="font-extrabold text-sm text-slate-800 uppercase tracking-wide">Export Dossier Personel</span>
-              <button 
-                onClick={() => setIsExportOpen(false)}
-                disabled={exportStep === 'processing'}
-                className="p-1 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition disabled:opacity-30"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="p-6">
-              {exportStep === 'select' && (
-                <div className="flex flex-col gap-4 text-center">
-                  <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-                    Unduh dossier lengkap berkas hukum untuk {currentDossier.pangkat} {currentDossier.namaLengkap} (Total {currentDossier.cases.length} perkara):
-                  </p>
-                  
-                  <button
-                    type="button"
-                    onClick={startExportSimulation}
-                    className="py-3 px-4 bg-[#0a1f3d] hover:bg-[#122e54] text-white rounded-lg flex items-center justify-center gap-2 font-bold text-xs shadow-md transition active:scale-[0.98]"
-                  >
-                    <FilePdf size={16} className="text-amber-500" />
-                    <span>MULAI EKSPOR DOSSIER PDF</span>
-                  </button>
-                </div>
-              )}
-
-              {exportStep === 'processing' && (
-                <div className="flex flex-col items-center gap-4 text-center py-4">
-                  <div className="relative w-16 h-16 flex items-center justify-center">
-                    <div className="absolute inset-0 rounded-full border-4 border-slate-100 border-t-blue-600 animate-spin"></div>
-                    <span className="font-bold text-xs text-blue-600 font-mono">{exportProgress}%</span>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="font-bold text-xs text-slate-800">Menghasilkan Dokumen...</span>
-                    <span className="text-[10px] text-slate-400 font-semibold">Harap tunggu, dossier sedang dikompilasi</span>
-                  </div>
-                </div>
-              )}
-
-              {exportStep === 'done' && (
-                <div className="flex flex-col items-center gap-4 text-center py-4">
-                  <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100 animate-bounce">
-                    <CheckCircle size={24} />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="font-bold text-xs text-slate-800">Dossier Berhasil Diekspor!</span>
-                    <span className="text-[10px] text-slate-400 font-semibold">Berkas siap diunduh ke komputer Anda.</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsExportOpen(false)}
-                    className="mt-3 w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition active:scale-[0.98]"
-                  >
-                    UNDUH DOSSIER SEKARANG
-                  </button>
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
+ 
       )}
 
     </div>

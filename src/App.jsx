@@ -5,25 +5,54 @@ import InputData from './pages/input_data.jsx';
 import DataRekapPerkara from './pages/data_rekap_perkara.jsx';
 import PerkaraKesatuan from './pages/perkara_kesatuan.jsx';
 import PerkaraPersonel from './pages/perkara_personel.jsx';
+import Login from './pages/login.jsx';
+
+// Route protection guard
+function ProtectedRoute({ children }) {
+  const isAuthenticated = sessionStorage.getItem('main_auth') === 'true';
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Main page matching the requested Halaman Isi */}
-        <Route path="/" element={<HalamanIsi />} />
+        {/* Public Login Route */}
+        <Route path="/login" element={<Login />} />
         
-        {/* Input Data Perkara page */}
-        <Route path="/input-data" element={<InputData />} />
+        {/* Protected routes */}
+        <Route path="/" element={
+          <ProtectedRoute>
+            <HalamanIsi />
+          </ProtectedRoute>
+        } />
         
-        {/* Rekapitulasi Data Perkara page */}
-        <Route path="/rekap-perkara" element={<DataRekapPerkara />} />
+        <Route path="/input-data" element={
+          <ProtectedRoute>
+            <InputData />
+          </ProtectedRoute>
+        } />
         
-        {/* Perkara Kesatuan page */}
-        <Route path="/perkara-kesatuan" element={<PerkaraKesatuan />} />
+        <Route path="/rekap-perkara" element={
+          <ProtectedRoute>
+            <DataRekapPerkara />
+          </ProtectedRoute>
+        } />
         
-        {/* Perkara Personel page */}
-        <Route path="/perkara-personel" element={<PerkaraPersonel />} />
+        <Route path="/perkara-kesatuan" element={
+          <ProtectedRoute>
+            <PerkaraKesatuan />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/perkara-personel" element={
+          <ProtectedRoute>
+            <PerkaraPersonel />
+          </ProtectedRoute>
+        } />
         
         {/* Fallback route */}
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -15,38 +15,15 @@ import {
   Database, 
   X,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Menu,
+  User
 } from 'lucide-react';
 import { db } from '../firebase/config';
 import { collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
 
 // Initial data matching the mockup exactly
-const INITIAL_MOCK_DATA = [
-  { 
-    id: '1', 
-    noPerkara: 'P-102/MIL/2024', 
-    satuan: 'KODIM 1701/JAYAPURA', 
-    jenisPerkara: 'DISIPLIN MURNI', 
-    status: 'PROSES', 
-    tanggal: '2024-05-12' 
-  },
-  { 
-    id: '2', 
-    noPerkara: 'P-098/MIL/2024', 
-    satuan: 'YONIF 751/R', 
-    jenisPerkara: 'PIDANA UMUM', 
-    status: 'SELESAI', 
-    tanggal: '2024-04-18' 
-  },
-  { 
-    id: '3', 
-    noPerkara: 'P-085/MIL/2023', 
-    satuan: 'DENPOM XVII/1 BIAK', 
-    jenisPerkara: 'INSUBORDINASI', 
-    status: 'PROSES', 
-    tanggal: '2023-11-05' 
-  },
-];
+const INITIAL_MOCK_DATA = [];
 
 import logoKumdam from '../assets/images/logo_kumdam.jpeg';
 
@@ -56,9 +33,29 @@ const KumdamLogo = () => (
 );
 
 export default function HalamanIsi() {
-  const [perkaraList, setPerkaraList] = useState([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const isKesatuanVerified = sessionStorage.getItem('is_kesatuan_verified') === 'true';
+  const activeKesatuan = (() => {
+    const saved = sessionStorage.getItem('selected_kesatuan');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return null;
+  })();
+  // Set initial state from LocalStorage immediately to render in 0ms
+  const [perkaraList, setPerkaraList] = useState(() => {
+    const localData = localStorage.getItem('perkara_data');
+    return localData ? JSON.parse(localData) : [];
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    const localData = localStorage.getItem('perkara_data');
+    return !localData || JSON.parse(localData).length === 0;
+  });
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [selectedCaseDetail, setSelectedCaseDetail] = useState(null);
 
@@ -73,30 +70,42 @@ export default function HalamanIsi() {
 
   // Load cases from Firestore or local fallback
   const fetchPerkara = async () => {
-    setLoading(true);
     try {
       const q = query(collection(db, 'perkara'), orderBy('tanggal', 'desc'));
       const querySnapshot = await getDocs(q);
-      const items = [];
+      const firestoreItems = [];
       querySnapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() });
+        firestoreItems.push({ id: doc.id, ...doc.data() });
       });
 
-      if (items.length > 0) {
-        setPerkaraList(items);
-      } else {
-        // If database collection is empty, load mock data
-        setPerkaraList(INITIAL_MOCK_DATA);
-      }
-    } catch (error) {
-      console.warn("Firestore not available or empty. Falling back to LocalStorage.", error);
+      // Get current local items
       const localData = localStorage.getItem('perkara_data');
-      if (localData) {
-        setPerkaraList(JSON.parse(localData));
-      } else {
-        setPerkaraList(INITIAL_MOCK_DATA);
-        localStorage.setItem('perkara_data', JSON.stringify(INITIAL_MOCK_DATA));
-      }
+      const localList = localData ? JSON.parse(localData) : [];
+
+      // Combine: Firestore first, then only offline-created items from LocalStorage
+      const uniqueList = [];
+      const seen = new Set();
+      firestoreItems.forEach(item => {
+        const key = item.noPerkara || item.id;
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          uniqueList.push(item);
+        }
+      });
+
+      localList.forEach(item => {
+        const key = item.noPerkara || item.id;
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          uniqueList.push(item);
+        }
+      });
+
+      // Save back to LocalStorage to keep in sync
+      localStorage.setItem('perkara_data', JSON.stringify(uniqueList));
+      setPerkaraList(uniqueList);
+    } catch (error) {
+      console.warn("Firestore sync failed. Using LocalStorage offline.", error);
     } finally {
       setLoading(false);
     }
@@ -142,14 +151,14 @@ export default function HalamanIsi() {
     try {
       // Try adding to Firestore
       const docRef = await addDoc(collection(db, 'perkara'), newCase);
-      showToast('Data perkara berhasil disimpan ke Firestore!');
+      showToast('Data perkara berhasil disimpan to Firestore!');
       fetchPerkara();
     } catch (error) {
       console.warn("Could not save to Firestore, saving to LocalStorage instead.", error);
       // Fallback: LocalStorage
       const localData = localStorage.getItem('perkara_data');
       let currentList = localData ? JSON.parse(localData) : INITIAL_MOCK_DATA;
-      const createdCase = { id: Date.now().toString(), ...newCase };
+      const createdCase = { id: Date.now().toString(), isOfflineCreated: true, ...newCase };
       currentList = [createdCase, ...currentList];
       localStorage.setItem('perkara_data', JSON.stringify(currentList));
       setPerkaraList(currentList);
@@ -167,30 +176,23 @@ export default function HalamanIsi() {
     setIsModalOpen(false);
   };
 
-  // Stats Calculations (incorporating mockup base numbers + newly added dynamic entries)
+  // Stats Calculations from real data list
   const calculateStats = () => {
-    // We establish base offsets to maintain mockup values (1248, 42, 912) and grow dynamically
-    const baseJumlahPerkara = 1248;
-    const baseSatuanTerkait = 42;
-    const basePerkaraSelesai = 912;
-
-    // Filter out our original mock items to find "new additions"
-    const newAdditions = perkaraList.filter(item => 
-      !INITIAL_MOCK_DATA.some(mock => mock.noPerkara === item.noPerkara)
-    );
-
-    const extraCasesCount = newAdditions.length;
-    const extraSelesaiCount = newAdditions.filter(item => item.status === 'SELESAI').length;
+    const totalPerkara = perkaraList.length;
     
-    // Check if new additions introduce new unique Satuan not in the initial set
-    const initialSatuanSet = new Set(INITIAL_MOCK_DATA.map(item => item.satuan));
-    const newUniqueSatuans = newAdditions.filter(item => !initialSatuanSet.has(item.satuan));
-    const extraSatuanCount = new Set(newUniqueSatuans.map(item => item.satuan)).size;
+    // Find unique units (satuan)
+    const uniqueSatuans = new Set(
+      perkaraList.map(item => item.satuan?.toUpperCase().trim()).filter(Boolean)
+    );
+    const totalSatuan = uniqueSatuans.size;
+
+    // Find completed cases
+    const totalSelesai = perkaraList.filter(item => item.status === 'SELESAI').length;
 
     return {
-      totalPerkara: (baseJumlahPerkara + extraCasesCount).toLocaleString('en-US'),
-      totalSatuan: (baseSatuanTerkait + extraSatuanCount).toString(),
-      totalSelesai: (basePerkaraSelesai + extraSelesaiCount).toLocaleString('en-US')
+      totalPerkara: totalPerkara.toLocaleString('en-US'),
+      totalSatuan: totalSatuan.toString(),
+      totalSelesai: totalSelesai.toLocaleString('en-US')
     };
   };
 
@@ -200,12 +202,21 @@ export default function HalamanIsi() {
     <div className="min-h-screen flex flex-col bg-[#f8fafc] text-slate-800">
       
       {/* 1. TOP NAVBAR */}
-      <header className="h-16 bg-[#0a1f3d] flex items-center justify-between px-6 text-white shadow-md z-40 select-none">
-        <div className="flex items-center gap-12 h-full">
-          <div className="flex items-center gap-3">
+      <header className="sticky top-0 h-16 bg-[#0a1f3d] flex items-center justify-between px-6 text-white shadow-md z-50 select-none">
+        <div className="flex items-center gap-4 md:gap-12 h-full min-w-0">
+          <button 
+            type="button"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="md:hidden p-2 -ml-2 text-slate-300 hover:text-white rounded-lg focus:outline-none"
+          >
+            <Menu size={20} />
+          </button>
+
+          <div className="flex items-center gap-3 flex-shrink-0">
             <div className="w-2.5 h-6 bg-amber-500 rounded-full"></div>
-            <Link to="/" className="font-bold text-lg tracking-wide bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent hover:opacity-90">
-              Sistem Informasi Data Perkara
+            <Link to="/" className="font-bold text-sm md:text-lg tracking-wide bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent hover:opacity-90">
+              <span className="inline sm:hidden">SI Data Perkara</span>
+              <span className="hidden sm:inline">Sistem Informasi Data Perkara</span>
             </Link>
           </div>
           
@@ -226,53 +237,130 @@ export default function HalamanIsi() {
           </nav>
         </div>
 
-        {/* Right side spacer */}
-        <div className="w-10"></div>
+        {/* Right side Profile */}
+        {isKesatuanVerified && activeKesatuan && (
+          <div className="flex items-center gap-2 bg-[#ffffff10] border border-[#ffffff15] rounded-full pl-3 pr-4 py-1.5 max-w-[150px] sm:max-w-xs md:max-w-md select-none flex-shrink-0">
+            <div className="w-6 h-6 rounded-full bg-amber-500 text-[#0a1f3d] flex items-center justify-center shadow-sm flex-shrink-0">
+              <User size={14} className="stroke-[3]" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[8px] sm:text-[9px] font-bold text-slate-300 uppercase tracking-widest leading-none">
+                Akses Satuan
+              </span>
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-white truncate max-w-[80px] sm:max-w-[150px] md:max-w-[200px] leading-tight mt-0.5" title={activeKesatuan.nama}>
+                {activeKesatuan.nama}
+              </span>
+            </div>
+          </div>
+        )}
       </header>
 
       <div className="flex-1 flex flex-row overflow-hidden">
         
+        {/* Backdrop for mobile */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 md:hidden animate-in fade-in duration-200"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
         {/* 2. SIDEBAR */}
-        <aside className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between select-none">
+        <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col justify-between select-none transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}>
           <div className="py-6 flex flex-col">
             
             {/* Kumdam Emblem and Label */}
-            <div className="flex items-center gap-3 px-6 mb-8">
-              <KumdamLogo />
-              <div className="flex flex-col">
-                <span className="font-bold text-xs text-slate-800 tracking-wider">KUMDAM XVII</span>
-                <span className="text-[10px] text-slate-500 font-bold tracking-widest">CENDERAWASIH</span>
+            <div className="flex items-center justify-between px-6 mb-8">
+              <div className="flex items-center gap-3">
+                <KumdamLogo />
+                <div className="flex flex-col">
+                  <span className="font-bold text-xs text-slate-800 tracking-wider">KUMDAM XVII</span>
+                  <span className="text-[10px] text-slate-500 font-bold tracking-widest">CENDERAWASIH</span>
+                </div>
               </div>
+              <button 
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition"
+              >
+                <X size={18} />
+              </button>
             </div>
 
             {/* Sidebar Menus */}
             <nav className="flex flex-col gap-1 px-3">
+              {/* DESKTOP-ONLY LINK */}
               <Link 
                 to="/" 
-                className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold bg-blue-50 text-blue-600 border-l-4 border-blue-600 transition-all"
+                className="hidden md:flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold bg-blue-50 text-blue-600 border-l-4 border-blue-600 transition-all"
               >
                 <LayoutDashboard size={18} />
                 <span>Dashboard</span>
               </Link>
+
+              {/* MOBILE-ONLY LINK */}
+              <Link 
+                to="/" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold bg-blue-50 text-blue-600 border-l-4 border-blue-600 transition-all"
+              >
+                <LayoutDashboard size={18} />
+                <span>Halaman Isi</span>
+              </Link>
+
               <Link 
                 to="/input-data" 
+                onClick={() => setIsSidebarOpen(false)}
                 className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all text-left"
               >
                 <FileText size={18} />
                 <span>Input Data</span>
               </Link>
+
+              {/* DESKTOP-ONLY LINK */}
               <Link 
                 to="/rekap-perkara" 
-                className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+                className="hidden md:flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
                 <BarChart3 size={18} />
                 <span>Rekapitulasi</span>
+              </Link>
+
+              {/* MOBILE-ONLY LINK */}
+              <Link 
+                to="/rekap-perkara" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+              >
+                <BarChart3 size={18} />
+                <span>Data Rekap Perkara</span>
+              </Link>
+
+              <Link 
+                to="/perkara-kesatuan" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+              >
+                <Database size={18} />
+                <span>Perkara Kesatuan</span>
+              </Link>
+
+              <Link 
+                to="/perkara-personel" 
+                onClick={() => setIsSidebarOpen(false)}
+                className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
+              >
+                <User size={18} />
+                <span>Perkara Personel</span>
               </Link>
             </nav>
 
             {/* Tambah Perkara Button */}
             <Link 
               to="/input-data"
+              onClick={() => setIsSidebarOpen(false)}
               className="mx-4 mt-6 py-2.5 px-4 bg-[#0a1d37] hover:bg-[#11315c] text-white rounded-lg flex items-center justify-center gap-2 font-bold text-xs transition-all duration-150 active:scale-[0.98] shadow-md shadow-blue-900/10"
             >
               <Plus size={16} />
@@ -282,10 +370,20 @@ export default function HalamanIsi() {
 
           {/* Sidebar Footer */}
           <div className="border-t border-slate-100 py-4 flex flex-col gap-1">
-            <a href="#" className="flex items-center gap-3 px-6 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors text-sm font-semibold">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                if (window.confirm("Apa anda yakin ingin keluar?")) {
+                  sessionStorage.clear();
+                  window.location.href = '/login';
+                }
+              }}
+              className="flex items-center gap-3 px-6 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors text-sm font-semibold w-full text-left"
+            >
               <LogOut size={16} />
               <span>Keluar</span>
-            </a>
+            </button>
           </div>
         </aside>
 
@@ -308,23 +406,6 @@ export default function HalamanIsi() {
                 </p>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => showToast('Fitur Filter akan segera diimplementasikan!', 'info')}
-                  className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg text-slate-700 text-xs font-bold transition shadow-sm"
-                >
-                  <Filter size={14} />
-                  <span>Filter</span>
-                </button>
-                <button 
-                  onClick={() => showToast('Mengekspor laporan ke PDF...', 'info')}
-                  className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 rounded-lg text-slate-700 text-xs font-bold transition shadow-sm"
-                >
-                  <Download size={14} />
-                  <span>Export PDF</span>
-                </button>
-              </div>
             </div>
 
             {/* 4. STATS CARDS SECTION */}
@@ -483,7 +564,7 @@ export default function HalamanIsi() {
           {/* 6. PAGE FOOTER */}
           <footer className="mt-8 pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-slate-400 font-bold tracking-wider select-none">
             <div>
-              KUMDAM XVII | &copy; 2024 Sistem Informasi Data Perkara KUMDAM XVII/Cenderawasih. Hak Cipta Dilindungi.
+              KUMDAM XVII | &copy; 2026 Sistem Informasi Data Perkara KUMDAM XVII/Cenderawasih. Hak Cipta Dilindungi.
             </div>
             <div className="flex items-center gap-4">
               <a href="#" className="hover:text-slate-600 transition-colors">Kebijakan Privasi</a>
@@ -688,6 +769,31 @@ export default function HalamanIsi() {
                   })}
                 </span>
               </div>
+
+              {selectedCaseDetail.fileUrl && (
+                <div className="flex flex-col gap-1 pb-3 border-b border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Dokumen Kronologis
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (selectedCaseDetail.fileUrl.startsWith('http')) {
+                        window.open(selectedCaseDetail.fileUrl, '_blank');
+                      } else {
+                        const link = document.createElement('a');
+                        link.href = selectedCaseDetail.fileUrl;
+                        link.download = selectedCaseDetail.fileName || 'dokumen_kronologis.pdf';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }
+                    }}
+                    className="mt-1 self-start px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+                  >
+                    <span>📄 Unduh {selectedCaseDetail.fileName || 'Dokumen'}</span>
+                  </button>
+                </div>
+              )}
 
               <div className="flex flex-col gap-1">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
