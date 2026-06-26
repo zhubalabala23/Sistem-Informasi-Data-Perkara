@@ -122,6 +122,7 @@ const uploadFileOrBase64 = async (fileOrBase64, fileName, folderName, caseNo) =>
 
 export default function InputData() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
@@ -681,10 +682,7 @@ export default function InputData() {
               type="button"
               onClick={(e) => {
                 e.preventDefault();
-                if (window.confirm("Apa anda yakin ingin keluar?")) {
-                  sessionStorage.clear();
-                  window.location.href = '/login';
-                }
+                setIsLogoutModalOpen(true);
               }}
               className="flex items-center gap-3 px-6 py-2 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors text-sm font-semibold w-full text-left"
             >
@@ -1329,6 +1327,42 @@ export default function InputData() {
             <Sparkles className="text-blue-400 flex-shrink-0" size={18} />
           )}
           <span className="text-xs font-bold tracking-wide">{toast.message}</span>
+        </div>
+      )}
+
+      {/* 9. CUSTOM LOGOUT CONFIRMATION MODAL */}
+      {isLogoutModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm border border-slate-100 overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <LogOut size={28} />
+              </div>
+              <h3 className="text-lg font-extrabold text-[#0a1f3d] mb-2">Konfirmasi Keluar</h3>
+              <p className="text-sm text-slate-500 mb-6 font-medium">
+                Apakah Anda yakin ingin keluar dari Sistem Informasi Data Perkara?
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  type="button"
+                  onClick={() => setIsLogoutModalOpen(false)}
+                  className="flex-1 py-2 px-4 border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold rounded-lg transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sessionStorage.clear();
+                    navigate('/login', { replace: true });
+                  }}
+                  className="flex-1 py-2 px-4 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-sm transition active:scale-[0.98]"
+                >
+                  Keluar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
