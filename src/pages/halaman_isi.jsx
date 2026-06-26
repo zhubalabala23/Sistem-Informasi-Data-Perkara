@@ -32,6 +32,22 @@ const KumdamLogo = () => (
   <img src={logoKumdam} alt="Logo Kumdam XVII Cenderawasih" className="w-10 h-10 object-cover rounded-lg flex-shrink-0 drop-shadow-md border border-black" />
 );
 
+const formatJenisPerkara = (jenis, kategori) => {
+  if (!jenis) return '';
+  let formattedJenis = '';
+  const jUpper = jenis.toUpperCase();
+  if (jUpper === 'PIDANA UMUM') formattedJenis = 'Pidana umum';
+  else if (jUpper === 'PIDANA MILITER') formattedJenis = 'Pidana militer';
+  else if (jUpper === 'PERDATA') formattedJenis = 'Perdata';
+  else formattedJenis = jenis.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
+  if (kategori) {
+    const formattedKategori = kategori.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    return `${formattedJenis} (${formattedKategori})`;
+  }
+  return formattedJenis;
+};
+
 export default function HalamanIsi() {
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -504,6 +520,7 @@ export default function HalamanIsi() {
                       <th scope="col" className="px-6 py-3.5">No. Perkara</th>
                       <th scope="col" className="px-6 py-3.5">Satuan</th>
                       <th scope="col" className="px-6 py-3.5">Jenis Perkara</th>
+                      <th scope="col" className="px-6 py-3.5">Pasal</th>
                       <th scope="col" className="px-6 py-3.5">Status</th>
                       <th scope="col" className="px-6 py-3.5 text-center">Aksi</th>
                     </tr>
@@ -511,13 +528,13 @@ export default function HalamanIsi() {
                   <tbody className="divide-y divide-slate-100">
                     {loading ? (
                       <tr>
-                        <td colSpan="5" className="px-6 py-12 text-center text-slate-400 font-medium">
+                        <td colSpan="6" className="px-6 py-12 text-center text-slate-400 font-medium">
                           Memuat data perkara...
                         </td>
                       </tr>
                     ) : perkaraList.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="px-6 py-12 text-center text-slate-400 font-medium">
+                        <td colSpan="6" className="px-6 py-12 text-center text-slate-400 font-medium">
                           Belum ada data perkara. Silakan tambahkan perkara baru!
                         </td>
                       </tr>
@@ -531,7 +548,10 @@ export default function HalamanIsi() {
                             {item.satuan}
                           </td>
                           <td className="px-6 py-4 text-slate-600 text-xs font-medium">
-                            {item.jenisPerkara}
+                            {formatJenisPerkara(item.jenisPerkara, item.kategoriPelanggaran)}
+                          </td>
+                          <td className="px-6 py-4 text-slate-600 text-xs font-semibold">
+                            {item.pasal || '-'}
                           </td>
                           <td className="px-6 py-4">
                             <span className={`inline-flex items-center px-3 py-0.5 rounded-full text-[10px] font-extrabold border ${
@@ -752,7 +772,16 @@ export default function HalamanIsi() {
                   Jenis Perkara
                 </span>
                 <span className="text-slate-700 font-semibold">
-                  {selectedCaseDetail.jenisPerkara}
+                  {formatJenisPerkara(selectedCaseDetail.jenisPerkara, selectedCaseDetail.kategoriPelanggaran)}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-1 pb-3 border-b border-slate-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  Pasal
+                </span>
+                <span className="text-slate-700 font-semibold">
+                  {selectedCaseDetail.pasal || '-'}
                 </span>
               </div>
 

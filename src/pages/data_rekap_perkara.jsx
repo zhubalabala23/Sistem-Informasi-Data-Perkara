@@ -23,7 +23,8 @@ import {
   Trash2,
   Printer,
   Menu,
-  Database
+  Database,
+  Edit2
 } from 'lucide-react';
 import { db, storage } from '../firebase/config';
 import { collection, getDocs, doc, deleteDoc } from 'firebase/firestore';
@@ -148,6 +149,22 @@ const renderPutusanCell = (item) => {
 // Prepopulated static mock data matching the screenshot and layout
 const REKAP_MOCK_DATA = [];
 
+const formatJenisPerkara = (jenis, kategori) => {
+  if (!jenis) return '';
+  let formattedJenis = '';
+  const jUpper = jenis.toUpperCase();
+  if (jUpper === 'PIDANA UMUM') formattedJenis = 'Pidana umum';
+  else if (jUpper === 'PIDANA MILITER') formattedJenis = 'Pidana militer';
+  else if (jUpper === 'PERDATA') formattedJenis = 'Perdata';
+  else formattedJenis = jenis.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
+  if (kategori) {
+    const formattedKategori = kategori.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    return `${formattedJenis} (${formattedKategori})`;
+  }
+  return formattedJenis;
+};
+
 export default function DataRekapPerkara() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -184,13 +201,19 @@ export default function DataRekapPerkara() {
   const [perkaraList, setPerkaraList] = useState(() => {
     const localData = localStorage.getItem('perkara_data');
     const localList = localData ? JSON.parse(localData) : [];
-    const uniqueList = [...localList];
+    const uniqueList = localList.map(item => ({
+      ...item,
+      tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL'))
+    }));
     const seen = new Set(uniqueList.map(item => item.noPerkara || item.id).filter(Boolean));
     REKAP_MOCK_DATA.forEach(mockItem => {
       const key = mockItem.noPerkara || mockItem.id;
       if (key && !seen.has(key)) {
         seen.add(key);
-        uniqueList.push(mockItem);
+        uniqueList.push({
+          ...mockItem,
+          tahapPenyelesaian: mockItem.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (mockItem.tahapPenyelesaian?.toUpperCase() || (mockItem.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL'))
+        });
       }
     });
     return uniqueList;
@@ -201,8 +224,20 @@ export default function DataRekapPerkara() {
   const [selectedCase, setSelectedCase] = useState(() => {
     const localData = localStorage.getItem('perkara_data');
     const localList = localData ? JSON.parse(localData) : [];
-    if (localList.length > 0) return localList[0];
-    if (REKAP_MOCK_DATA.length > 0) return REKAP_MOCK_DATA[0];
+    if (localList.length > 0) {
+      const first = localList[0];
+      return {
+        ...first,
+        tahapPenyelesaian: first.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (first.tahapPenyelesaian?.toUpperCase() || (first.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL'))
+      };
+    }
+    if (REKAP_MOCK_DATA.length > 0) {
+      const first = REKAP_MOCK_DATA[0];
+      return {
+        ...first,
+        tahapPenyelesaian: first.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (first.tahapPenyelesaian?.toUpperCase() || (first.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL'))
+      };
+    }
     return null;
   });
   
@@ -245,7 +280,10 @@ export default function DataRekapPerkara() {
         const key = item.noPerkara || item.id;
         if (key && !seen.has(key)) {
           seen.add(key);
-          uniqueList.push(item);
+          uniqueList.push({
+            ...item,
+            tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL'))
+          });
         }
       });
 
@@ -253,7 +291,10 @@ export default function DataRekapPerkara() {
         const key = item.noPerkara || item.id;
         if (key && !seen.has(key)) {
           seen.add(key);
-          uniqueList.push(item);
+          uniqueList.push({
+            ...item,
+            tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL'))
+          });
         }
       });
 
@@ -261,7 +302,10 @@ export default function DataRekapPerkara() {
         const key = mockItem.noPerkara || mockItem.id;
         if (key && !seen.has(key)) {
           seen.add(key);
-          uniqueList.push(mockItem);
+          uniqueList.push({
+            ...mockItem,
+            tahapPenyelesaian: mockItem.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (mockItem.tahapPenyelesaian?.toUpperCase() || (mockItem.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL'))
+          });
         }
       });
 
@@ -794,6 +838,7 @@ export default function DataRekapPerkara() {
                       <th className="py-3.5 px-4">PANGKAT</th>
                       <th className="py-3.5 px-4">KESATUAN</th>
                       <th className="py-3.5 px-4">PERKARA</th>
+                      <th className="py-3.5 px-4">PASAL</th>
                       <th className="py-3.5 px-4">TAHAPAN PENYELESAIAN</th>
                       <th className="py-3.5 px-6">PUTUSAN</th>
                       <th className="py-3.5 px-4 text-center w-20 action-col-print">AKSI</th>
@@ -820,11 +865,15 @@ export default function DataRekapPerkara() {
                             Selesai
                           </span>
                         );
-                      } else if (tLower.includes('sidang')) {
+                      } else if (tLower.includes('sidang') || tLower.includes('dilmil') || tLower.includes('pengadilan negeri') || tLower.includes('pengadilan agama') || tLower.includes('tata usaha negara')) {
+                        let displayLabel = 'DILMIL';
+                        if (tLower.includes('pengadilan negeri')) displayLabel = 'Pengadilan Negeri';
+                        else if (tLower.includes('pengadilan agama')) displayLabel = 'Pengadilan Agama';
+                        else if (tLower.includes('tata usaha negara')) displayLabel = 'Tata Usaha Negara';
                         statusBadge = (
                           <span className="flex items-center gap-1.5 font-bold text-blue-600">
                             <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                            Tahap Sidang
+                            {displayLabel}
                           </span>
                         );
                       } else if (item.tahapPenyelesaian) {
@@ -860,7 +909,10 @@ export default function DataRekapPerkara() {
                             {item.satuan}
                           </td>
                           <td className="py-4 px-4 font-bold text-[#991b1b]">
-                            {item.jenisPerkara}
+                            {formatJenisPerkara(item.jenisPerkara, item.kategoriPelanggaran)}
+                          </td>
+                          <td className="py-4 px-4 text-slate-600 font-semibold">
+                            {item.pasal || '-'}
                           </td>
                           <td className="py-4 px-4">
                             <span className="print:hidden">{statusBadge}</span>
@@ -869,18 +921,32 @@ export default function DataRekapPerkara() {
                           <td className="py-4 px-6">
                             {renderPutusanCell(item)}
                           </td>
-                          <td className="py-4 px-4 text-center action-col-print">
-                            {canDeleteCase(item) ? (
-                              <button
-                                onClick={(e) => handleDeleteCase(item, e)}
-                                className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg hover:text-red-700 transition"
-                                title="Hapus Data Perkara"
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            ) : (
-                              <span className="text-slate-400 font-semibold">-</span>
-                            )}
+                          <td className="py-4 px-4 text-center action-col-print text-xs">
+                            <div className="flex items-center justify-center gap-2">
+                              {canDeleteCase(item) ? (
+                                <>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/edit-data/${item.id}`);
+                                    }}
+                                    className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg hover:text-blue-700 transition"
+                                    title="Edit Data Perkara"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleDeleteCase(item, e)}
+                                    className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg hover:text-red-700 transition"
+                                    title="Hapus Data Perkara"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="text-slate-400 font-semibold">-</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -888,7 +954,7 @@ export default function DataRekapPerkara() {
 
                     {filteredList.length === 0 && (
                       <tr>
-                        <td colSpan="9" className="py-12 text-center text-slate-400 font-bold uppercase tracking-wider">
+                        <td colSpan="10" className="py-12 text-center text-slate-400 font-bold uppercase tracking-wider">
                           Tidak ada data rekap perkara yang sesuai filter.
                         </td>
                       </tr>
@@ -994,7 +1060,12 @@ export default function DataRekapPerkara() {
                           <tbody>
                             <tr>
                               <td className="py-3 px-4 font-bold text-[#991b1b]">
-                                {selectedCase.jenisPerkara}
+                                <div>{formatJenisPerkara(selectedCase.jenisPerkara, selectedCase.kategoriPelanggaran)}</div>
+                                {selectedCase.pasal && (
+                                  <div className="text-[10px] text-slate-500 font-bold mt-1 select-none">
+                                    Pasal: <span className="font-semibold text-slate-700">{selectedCase.pasal}</span>
+                                  </div>
+                                )}
                               </td>
                               <td className="py-3 px-4 text-slate-500 max-w-[200px] leading-relaxed">
                                 <div>{selectedCase.kronologis || 'Detail perkara sedang diproses.'}</div>
@@ -1014,7 +1085,11 @@ export default function DataRekapPerkara() {
                                    (selectedCase.tahapPenyelesaian || '').toLowerCase() === 'putusan' ||
                                    (!selectedCase.tahapPenyelesaian && selectedCase.status === 'SELESAI'))
                                     ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                    : (selectedCase.tahapPenyelesaian || '').toLowerCase().includes('sidang')
+                                    : ((selectedCase.tahapPenyelesaian || '').toLowerCase().includes('sidang') ||
+                                       (selectedCase.tahapPenyelesaian || '').toLowerCase().includes('dilmil') ||
+                                       (selectedCase.tahapPenyelesaian || '').toLowerCase().includes('pengadilan negeri') ||
+                                       (selectedCase.tahapPenyelesaian || '').toLowerCase().includes('pengadilan agama') ||
+                                       (selectedCase.tahapPenyelesaian || '').toLowerCase().includes('tata usaha negara'))
                                       ? 'bg-blue-50 text-blue-600 border-blue-100'
                                       : 'bg-amber-50 text-[#b45309] border border-amber-100'
                                 }`}>
@@ -1092,7 +1167,12 @@ export default function DataRekapPerkara() {
                               <div className="text-[10px] text-slate-400 font-semibold">{item.pangkat} | {item.nrpNip}</div>
                             </td>
                             <td className="py-3 px-4 font-bold text-[#991b1b]">
-                              {item.jenisPerkara}
+                              <div>{formatJenisPerkara(item.jenisPerkara, item.kategoriPelanggaran)}</div>
+                              {item.pasal && (
+                                <div className="text-[10px] text-slate-500 font-bold mt-1 select-none">
+                                  Pasal: <span className="font-semibold text-slate-700">{item.pasal}</span>
+                                </div>
+                              )}
                             </td>
                             <td className="py-3 px-4">
                               <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase border ${
@@ -1100,7 +1180,11 @@ export default function DataRekapPerkara() {
                                  (item.tahapPenyelesaian || '').toLowerCase() === 'putusan' ||
                                  (!item.tahapPenyelesaian && item.status === 'SELESAI'))
                                   ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                  : (item.tahapPenyelesaian || '').toLowerCase().includes('sidang')
+                                  : ((item.tahapPenyelesaian || '').toLowerCase().includes('sidang') ||
+                                     (item.tahapPenyelesaian || '').toLowerCase().includes('dilmil') ||
+                                     (item.tahapPenyelesaian || '').toLowerCase().includes('pengadilan negeri') ||
+                                     (item.tahapPenyelesaian || '').toLowerCase().includes('pengadilan agama') ||
+                                     (item.tahapPenyelesaian || '').toLowerCase().includes('tata usaha negara'))
                                     ? 'bg-blue-50 text-blue-600 border-blue-100'
                                     : 'bg-amber-50 text-[#b45309] border border-amber-100'
                               }`}>

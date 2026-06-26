@@ -68,7 +68,10 @@ const TAHAP_PENYELESAIAN_OPTIONS = [
   'ANKUM',
   'PENYIDIKAN',
   'PELIMPAHAN/OTMIL',
-  'SIDANG',
+  'DILMIL',
+  'PENGADILAN NEGERI',
+  'PENGADILAN AGAMA',
+  'TATA USAHA NEGARA',
   'BANDING',
   'KASASI',
   'PENINJAUAN KEMBALI'
@@ -140,7 +143,9 @@ export default function InputData() {
         console.error(e);
       }
     }
-    return KESATUAN_OPTIONS[0];
+    const defaultKesatuan = KESATUAN_OPTIONS[0];
+    sessionStorage.setItem('selected_kesatuan', JSON.stringify(defaultKesatuan));
+    return defaultKesatuan;
   });
   
   const [accessKey, setAccessKey] = useState('');
@@ -171,6 +176,7 @@ export default function InputData() {
       pangkat: '',
       jabatan: '',
       kategoriPelanggaran: '',
+      pasal: '',
       kronologis: '',
       tahapPenyelesaian: '',
       fotoPersonel: null,
@@ -252,6 +258,7 @@ export default function InputData() {
     if (accessKey === selectedKesatuan.key || accessKey === '123') {
       setIsVerified(true);
       sessionStorage.setItem('is_kesatuan_verified', 'true');
+      sessionStorage.setItem('selected_kesatuan', JSON.stringify(selectedKesatuan));
       showToast(`Akses Terverifikasi untuk ${selectedKesatuan.nama}!`, 'success');
     } else {
       setIsVerified(false);
@@ -375,7 +382,7 @@ export default function InputData() {
       return;
     }
 
-    if (!formData.jenisPerkara || !formData.namaLengkap || !formData.nrpNip || !formData.kategoriPelanggaran || !formData.tahapPenyelesaian) {
+    if (!formData.jenisPerkara || !formData.namaLengkap || !formData.nrpNip || !formData.kategoriPelanggaran || !formData.tahapPenyelesaian || !formData.pasal) {
       showToast('Harap lengkapi semua kolom wajib formulir!', 'error');
       return;
     }
@@ -459,6 +466,7 @@ export default function InputData() {
         pangkat: formData.pangkat,
         jabatan: formData.jabatan,
         kategoriPelanggaran: formData.kategoriPelanggaran,
+        pasal: formData.pasal || '',
         kronologis: formData.kronologis,
         tahapPenyelesaian: formData.tahapPenyelesaian,
         status: mappedStatus,
@@ -1050,6 +1058,23 @@ export default function InputData() {
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
                           ))}
                         </select>
+                      </div>
+
+                      {/* Pasal */}
+                      <div>
+                        <label htmlFor="pasal" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5 select-none">
+                          Pasal <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          id="pasal"
+                          name="pasal"
+                          value={formData.pasal || ''}
+                          onChange={handleInputChange}
+                          placeholder="Masukkan pasal perkara (contoh: Pasal 338 KUHP)"
+                          className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-xs font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                          required
+                        />
                       </div>
 
                       {/* Kronologis Singkat */}

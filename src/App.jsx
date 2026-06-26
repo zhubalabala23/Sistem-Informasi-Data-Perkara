@@ -6,6 +6,7 @@ import DataRekapPerkara from './pages/data_rekap_perkara.jsx';
 import PerkaraKesatuan from './pages/perkara_kesatuan.jsx';
 import PerkaraPersonel from './pages/perkara_personel.jsx';
 import Login from './pages/login.jsx';
+import EditData from './pages/edit_data.jsx';
 
 // Route protection guard
 function ProtectedRoute({ children }) {
@@ -39,6 +40,12 @@ function App() {
         <Route path="/rekap-perkara" element={
           <ProtectedRoute>
             <DataRekapPerkara />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/edit-data/:id" element={
+          <ProtectedRoute>
+            <EditData />
           </ProtectedRoute>
         } />
         

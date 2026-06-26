@@ -165,6 +165,22 @@ const DEFAULT_DOSSIER = {
   logs: []
 };
 
+const formatJenisPerkara = (jenis, kategori) => {
+  if (!jenis) return '';
+  let formattedJenis = '';
+  const jUpper = jenis.toUpperCase();
+  if (jUpper === 'PIDANA UMUM') formattedJenis = 'Pidana umum';
+  else if (jUpper === 'PIDANA MILITER') formattedJenis = 'Pidana militer';
+  else if (jUpper === 'PERDATA') formattedJenis = 'Perdata';
+  else formattedJenis = jenis.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
+  if (kategori) {
+    const formattedKategori = kategori.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    return `${formattedJenis} (${formattedKategori})`;
+  }
+  return formattedJenis;
+};
+
 export default function PerkaraPersonel() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -180,14 +196,17 @@ export default function PerkaraPersonel() {
       if (!caseItem.nrpNip) return;
       let dossier = baseDossiers.find(d => d.nrpNip === caseItem.nrpNip);
       
+      const normalizedTahap = caseItem.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : caseItem.tahapPenyelesaian;
+      
       const formattedCase = {
         id: caseItem.id || caseItem.noPerkara,
-        perkara: caseItem.jenisPerkara || 'Perkara',
+        perkara: formatJenisPerkara(caseItem.jenisPerkara, caseItem.kategoriPelanggaran) || 'Perkara',
         nomor: caseItem.noPerkara,
+        pasal: caseItem.pasal || '',
         badge: caseItem.status === 'SELESAI' ? 'PRIORITAS RENDAH' : 'PRIORITAS TINGGI',
         kronologis: caseItem.kronologis || 'Detail perkara sedang diproses.',
-        tahapan: caseItem.tahapPenyelesaian || (caseItem.status === 'SELESAI' ? 'Selesai' : 'Proses'),
-        detailTahapan: caseItem.tahapPenyelesaian || 'Penyidikan',
+        tahapan: normalizedTahap || (caseItem.status === 'SELESAI' ? 'Selesai' : 'Proses'),
+        detailTahapan: normalizedTahap || 'Penyidikan',
         putusan: caseItem.putusan || (caseItem.status === 'SELESAI' ? 'Putusan Selesai' : null),
         dokumenPutusan: caseItem.dokumenPutusan || caseItem.putusan || null,
         pidanaPokok: caseItem.pidanaPokok || '',
@@ -263,14 +282,16 @@ export default function PerkaraPersonel() {
     localList.forEach(caseItem => {
       if (!caseItem.nrpNip) return;
       let dossier = baseDossiers.find(d => d.nrpNip === caseItem.nrpNip);
+      const normalizedTahap = caseItem.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : caseItem.tahapPenyelesaian;
       const formattedCase = {
         id: caseItem.id || caseItem.noPerkara,
-        perkara: caseItem.jenisPerkara || 'Perkara',
+        perkara: formatJenisPerkara(caseItem.jenisPerkara, caseItem.kategoriPelanggaran) || 'Perkara',
         nomor: caseItem.noPerkara,
+        pasal: caseItem.pasal || '',
         badge: caseItem.status === 'SELESAI' ? 'PRIORITAS RENDAH' : 'PRIORITAS TINGGI',
         kronologis: caseItem.kronologis || 'Detail perkara sedang diproses.',
-        tahapan: caseItem.tahapPenyelesaian || (caseItem.status === 'SELESAI' ? 'Selesai' : 'Proses'),
-        detailTahapan: caseItem.tahapPenyelesaian || 'Penyidikan',
+        tahapan: normalizedTahap || (caseItem.status === 'SELESAI' ? 'Selesai' : 'Proses'),
+        detailTahapan: normalizedTahap || 'Penyidikan',
         putusan: caseItem.putusan || (caseItem.status === 'SELESAI' ? 'Putusan Selesai' : null),
         dokumenPutusan: caseItem.dokumenPutusan || caseItem.putusan || null,
         pidanaPokok: caseItem.pidanaPokok || '',
@@ -408,15 +429,18 @@ export default function PerkaraPersonel() {
         // Find existing dossier in baseDossiers
         let dossier = baseDossiers.find(d => d.nrpNip === caseItem.nrpNip);
         
+        const normalizedTahap = caseItem.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : caseItem.tahapPenyelesaian;
+        
         // Format caseItem to match the dossier's case schema
         const formattedCase = {
           id: caseItem.id || caseItem.noPerkara,
-          perkara: caseItem.jenisPerkara || 'Perkara',
+          perkara: formatJenisPerkara(caseItem.jenisPerkara, caseItem.kategoriPelanggaran) || 'Perkara',
           nomor: caseItem.noPerkara,
+          pasal: caseItem.pasal || '',
           badge: caseItem.status === 'SELESAI' ? 'PRIORITAS RENDAH' : 'PRIORITAS TINGGI',
           kronologis: caseItem.kronologis || 'Detail perkara sedang diproses.',
-          tahapan: caseItem.tahapPenyelesaian || (caseItem.status === 'SELESAI' ? 'Selesai' : 'Proses'),
-          detailTahapan: caseItem.tahapPenyelesaian || 'Penyidikan',
+          tahapan: normalizedTahap || (caseItem.status === 'SELESAI' ? 'Selesai' : 'Proses'),
+          detailTahapan: normalizedTahap || 'Penyidikan',
           putusan: caseItem.putusan || (caseItem.status === 'SELESAI' ? 'Putusan Selesai' : null),
           dokumenPutusan: caseItem.dokumenPutusan || caseItem.putusan || null,
           pidanaPokok: caseItem.pidanaPokok || '',
@@ -899,6 +923,9 @@ export default function PerkaraPersonel() {
                           <div className="flex flex-col gap-1.5">
                             <span className="font-bold text-slate-800">{item.perkara}</span>
                             <span className="text-[9px] font-mono text-slate-400 font-bold block">{item.nomor}</span>
+                            {item.pasal && (
+                              <span className="text-[9px] font-semibold text-slate-500 block">Pasal: {item.pasal}</span>
+                            )}
                             {item.badge && (
                               <span className="px-1.5 py-0.5 bg-red-50 text-red-600 font-bold text-[8px] uppercase tracking-wider rounded border border-red-100/50 self-start">
                                 {item.badge}

@@ -135,6 +135,22 @@ const KESATUAN_OPTIONS = [
 
 const MOCK_KESATUAN_DATA = [];
 
+const formatJenisPerkara = (jenis, kategori) => {
+  if (!jenis) return '';
+  let formattedJenis = '';
+  const jUpper = jenis.toUpperCase();
+  if (jUpper === 'PIDANA UMUM') formattedJenis = 'Pidana umum';
+  else if (jUpper === 'PIDANA MILITER') formattedJenis = 'Pidana militer';
+  else if (jUpper === 'PERDATA') formattedJenis = 'Perdata';
+  else formattedJenis = jenis.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
+  if (kategori) {
+    const formattedKategori = kategori.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+    return `${formattedJenis} (${formattedKategori})`;
+  }
+  return formattedJenis;
+};
+
 export default function PerkaraKesatuan() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -158,12 +174,16 @@ export default function PerkaraKesatuan() {
     const saved = sessionStorage.getItem('selected_kesatuan');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        const found = KESATUAN_OPTIONS.find(item => item.id === parsed.id);
+        if (found) return found;
       } catch (e) {
         console.error(e);
       }
     }
-    return { id: 'POMDAM', nama: 'POMDAM XVII/CENDERAWASIH' };
+    const defaultKesatuan = KESATUAN_OPTIONS[0];
+    sessionStorage.setItem('selected_kesatuan', JSON.stringify(defaultKesatuan));
+    return defaultKesatuan;
   });
 
   // Permission helper: general admin can print any, specific kesatuan can only print their own
@@ -186,7 +206,7 @@ export default function PerkaraKesatuan() {
       pangkat: item.pangkat,
       satuan: item.satuan,
       jenisPerkara: item.jenisPerkara,
-      tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'SIDANG'),
+      tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL')),
       putusan: item.putusan || (item.status === 'SELESAI' ? 'Selesai' : '-'),
       pidanaPokok: item.pidanaPokok || '',
       pidanaTambahan: item.pidanaTambahan || '',
@@ -243,7 +263,9 @@ export default function PerkaraKesatuan() {
               pangkat: data.pangkat,
               satuan: data.satuan,
               jenisPerkara: data.jenisPerkara,
-              tahapPenyelesaian: data.tahapPenyelesaian?.toUpperCase() || (data.status === 'SELESAI' ? 'PUTUSAN' : 'SIDANG'),
+              kategoriPelanggaran: data.kategoriPelanggaran || '',
+              pasal: data.pasal || '',
+              tahapPenyelesaian: data.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (data.tahapPenyelesaian?.toUpperCase() || (data.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL')),
               putusan: data.putusan || (data.status === 'SELESAI' ? 'Selesai' : '-'),
               pidanaPokok: data.pidanaPokok || '',
               pidanaTambahan: data.pidanaTambahan || '',
@@ -277,7 +299,9 @@ export default function PerkaraKesatuan() {
         pangkat: item.pangkat,
         satuan: item.satuan,
         jenisPerkara: item.jenisPerkara,
-        tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'SIDANG'),
+        kategoriPelanggaran: item.kategoriPelanggaran || '',
+        pasal: item.pasal || '',
+        tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL')),
         putusan: item.putusan || (item.status === 'SELESAI' ? 'Selesai' : '-'),
         pidanaPokok: item.pidanaPokok || '',
         pidanaTambahan: item.pidanaTambahan || '',
@@ -362,7 +386,8 @@ export default function PerkaraKesatuan() {
 
     const matchesPerkara = 
       filterPerkara === '' || 
-      jenisStr.toLowerCase().includes(filterPerkara.toLowerCase());
+      jenisStr.toLowerCase().includes(filterPerkara.toLowerCase()) ||
+      (item.kategoriPelanggaran || '').toLowerCase().includes(filterPerkara.toLowerCase());
 
     const matchesTahap = 
       filterTahap === '' || 
@@ -616,26 +641,21 @@ export default function PerkaraKesatuan() {
                 <h1 className="text-xl font-extrabold text-[#0a1f3d] tracking-tight uppercase print:text-lg">
                   Data Perkara Kesatuan:
                 </h1>
-                {!isKesatuanVerified ? (
-                  <select
-                    value={selectedKesatuan.id}
-                    onChange={(e) => {
-                      const found = KESATUAN_OPTIONS.find(k => k.id === e.target.value);
-                      if (found) {
-                        setSelectedKesatuan(found);
-                      }
-                    }}
-                    className="bg-white border border-slate-250 rounded-lg px-3 py-1.5 text-xs text-[#0a1f3d] font-extrabold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none print:hidden shadow-sm"
-                  >
-                    {KESATUAN_OPTIONS.map(k => (
-                      <option key={k.id} value={k.id}>{k.nama}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="text-xl font-extrabold text-[#0a1f3d] uppercase print:text-lg">
-                    {selectedKesatuan.nama}
-                  </span>
-                )}
+                <select
+                  value={selectedKesatuan.id}
+                  onChange={(e) => {
+                    const found = KESATUAN_OPTIONS.find(k => k.id === e.target.value);
+                    if (found) {
+                      setSelectedKesatuan(found);
+                      sessionStorage.setItem('selected_kesatuan', JSON.stringify(found));
+                    }
+                  }}
+                  className="bg-white border border-slate-250 rounded-lg px-3 py-1.5 text-xs text-[#0a1f3d] font-extrabold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none print:hidden shadow-sm"
+                >
+                  {KESATUAN_OPTIONS.map(k => (
+                    <option key={k.id} value={k.id}>{k.nama}</option>
+                  ))}
+                </select>
                 <span className="hidden print:inline text-xl font-extrabold text-[#0a1f3d] uppercase">
                   {selectedKesatuan.nama}
                 </span>
@@ -697,7 +717,10 @@ export default function PerkaraKesatuan() {
                       className="w-full bg-slate-50/50 border border-slate-200 rounded-lg px-3 py-2.5 text-xs text-slate-700 font-bold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all"
                     >
                       <option value="">Semua Tahapan</option>
-                      <option value="SIDANG">SIDANG</option>
+                      <option value="DILMIL">DILMIL</option>
+                      <option value="PENGADILAN NEGERI">PENGADILAN NEGERI</option>
+                      <option value="PENGADILAN AGAMA">PENGADILAN AGAMA</option>
+                      <option value="TATA USAHA NEGARA">TATA USAHA NEGARA</option>
                       <option value="PENYIDIKAN">PENYIDIKAN</option>
                       <option value="PUTUSAN">PUTUSAN</option>
                       <option value="PENUNTUTAN">PENUNTUTAN</option>
@@ -746,6 +769,7 @@ export default function PerkaraKesatuan() {
                       <th className="py-3.5 px-6">NRP</th>
                       <th className="py-3.5 px-6">PANGKAT</th>
                       <th className="py-3.5 px-6">PERKARA</th>
+                      <th className="py-3.5 px-6">PASAL</th>
                       <th className="py-3.5 px-6 text-center">TAHAPAN PENYELESAIAN</th>
                       <th className="py-3.5 px-8">PUTUSAN</th>
                     </tr>
@@ -756,7 +780,7 @@ export default function PerkaraKesatuan() {
                       let badgeStyle = "border-slate-300 text-slate-500 bg-slate-50";
                       
                       const tLower = (item.tahapPenyelesaian || '').toLowerCase();
-                      if (tLower.includes('sidang')) {
+                      if (tLower.includes('sidang') || tLower.includes('dilmil') || tLower.includes('pengadilan negeri') || tLower.includes('pengadilan agama') || tLower.includes('tata usaha negara')) {
                         badgeStyle = "border-blue-400 text-blue-600 bg-blue-50/50";
                       } else if (tLower.includes('penyidikan')) {
                         badgeStyle = "border-slate-400 text-slate-500 bg-slate-50";
@@ -783,7 +807,10 @@ export default function PerkaraKesatuan() {
                             {item.pangkat}
                           </td>
                           <td className="py-4 px-6 text-slate-600 font-semibold">
-                            {item.jenisPerkara}
+                            {formatJenisPerkara(item.jenisPerkara, item.kategoriPelanggaran)}
+                          </td>
+                          <td className="py-4 px-6 text-slate-600 font-semibold">
+                            {item.pasal || '-'}
                           </td>
                           <td className="py-4 px-6 text-center select-none">
                             <span className={`px-3 py-0.5 border rounded-full font-bold text-[9px] tracking-wider inline-block ${badgeStyle}`}>
@@ -799,7 +826,7 @@ export default function PerkaraKesatuan() {
 
                     {filteredList.length === 0 && (
                       <tr>
-                        <td colSpan="7" className="py-12 text-center text-slate-400 font-bold uppercase tracking-wider">
+                        <td colSpan="8" className="py-12 text-center text-slate-400 font-bold uppercase tracking-wider">
                           Tidak ada data perkara kesatuan.
                         </td>
                       </tr>
