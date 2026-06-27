@@ -368,15 +368,100 @@ export default function DataRekapPerkara() {
     setSelectedCase(item);
   };
 
-  // Helper to safely delete a file from Storage by its URL
-  const deleteFileFromStorage = async (url) => {
-    if (!url || typeof url !== 'string' || !url.startsWith('https://firebasestorage.googleapis.com')) return;
+  // Helper to extract public_id and resource_type from a Cloudinary URL
+  const parseCloudinaryUrl = (url) => {
+    if (!url || typeof url !== 'string' || !url.includes('res.cloudinary.com')) return null;
     try {
-      const fileRef = ref(storage, url);
-      await deleteObject(fileRef);
-      console.log("Successfully deleted file from Firebase Storage:", url);
+      const parts = url.split('res.cloudinary.com/')[1].split('/');
+      const cloudName = parts[0];
+      const resourceType = parts[1]; // e.g. "image" or "raw"
+      
+      const uploadIndex = parts.indexOf('upload');
+      if (uploadIndex === -1) return null;
+      
+      const publicIdParts = parts.slice(uploadIndex + 2);
+      const publicIdWithExt = publicIdParts.join('/');
+      
+      const lastDotIndex = publicIdWithExt.lastIndexOf('.');
+      const publicIdWithoutExt = lastDotIndex !== -1 ? publicIdWithExt.substring(0, lastDotIndex) : publicIdWithExt;
+      
+      // Cloudinary destroy endpoint wants the extension included for raw files, but excluded for images/videos
+      const publicId = resourceType === 'raw' ? publicIdWithExt : publicIdWithoutExt;
+      
+      return {
+        cloudName,
+        resourceType,
+        publicId
+      };
     } catch (error) {
-      console.warn("Failed to delete file from Firebase Storage:", error);
+      console.error("Failed to parse Cloudinary URL:", error);
+      return null;
+    }
+  };
+
+  // Helper to safely delete a file from Storage (both Firebase Storage and Cloudinary) by its URL
+  const deleteFileFromStorage = async (url) => {
+    if (!url || typeof url !== 'string') return;
+
+    // A. Handle Firebase Storage URL deletion
+    if (url.startsWith('https://firebasestorage.googleapis.com')) {
+      try {
+        const fileRef = ref(storage, url);
+        await deleteObject(fileRef);
+        console.log("Successfully deleted file from Firebase Storage:", url);
+      } catch (error) {
+        console.warn("Failed to delete file from Firebase Storage:", error);
+      }
+      return;
+    }
+
+    // B. Handle Cloudinary URL deletion (requires VITE_CLOUDINARY_API_KEY & VITE_CLOUDINARY_API_SECRET in .env)
+    if (url.includes('res.cloudinary.com')) {
+      const parsed = parseCloudinaryUrl(url);
+      if (!parsed) return;
+
+      const { cloudName, resourceType, publicId } = parsed;
+      const apiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;
+      const apiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
+
+      if (!apiKey || !apiSecret) {
+        console.warn("Cloudinary VITE_CLOUDINARY_API_KEY atau VITE_CLOUDINARY_API_SECRET belum dikonfigurasi di file .env. Lewati penghapusan berkas di server Cloudinary.");
+        return;
+      }
+
+      try {
+        const timestamp = Math.round(new Date().getTime() / 1000);
+        // Signature needs sorted parameters (public_id, timestamp) + API Secret
+        const stringToSign = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
+        
+        // Calculate SHA-1 hash natively using Web Crypto API
+        const utf8 = new TextEncoder().encode(stringToSign);
+        const hashBuffer = await crypto.subtle.digest('SHA-1', utf8);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        const destroyUrl = `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/destroy`;
+
+        const formData = new FormData();
+        formData.append('public_id', publicId);
+        formData.append('api_key', apiKey);
+        formData.append('timestamp', timestamp.toString());
+        formData.append('signature', signature);
+
+        const response = await fetch(destroyUrl, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || 'Failed to destroy Cloudinary asset');
+        }
+
+        console.log("Successfully deleted asset from Cloudinary:", publicId);
+      } catch (error) {
+        console.error("Failed to delete asset from Cloudinary:", error);
+      }
     }
   };
 

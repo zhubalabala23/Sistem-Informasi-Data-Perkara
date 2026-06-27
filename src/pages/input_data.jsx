@@ -23,9 +23,8 @@ import {
   X,
   User
 } from 'lucide-react';
-import { db, storage } from '../firebase/config';
+import { db } from '../firebase/config';
 import { collection, addDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 import logoKumdam from '../assets/images/logo_kumdam.jpeg';
 
@@ -38,7 +37,7 @@ const KESATUAN_OPTIONS = [
   { id: 'POMDAM', nama: 'POMDAM XVII/CENDERAWASIH', key: '123', icon: '🏛️' },
   { id: 'ZIDAM', nama: 'ZIDAM XVII/CENDERAWASIH', key: '123', icon: '⚙️' },
   { id: 'KOMLEKDAM', nama: 'KOMLEKDAM XVII/CENDERAWASIH', key: '123', icon: '📡' },
-  { id: 'RINDAM', nama: 'RINDAM XVII/CENDERAWASIH', key: '123', icon: '🪖' }
+  { id: 'BEKANGDAM', nama: 'BEKANGDAM XVII/CENDERAWASIH', key: '123', icon: '🚚' }
 ];
 
 const JENIS_PERKARA_OPTIONS = [
@@ -77,50 +76,55 @@ const TAHAP_PENYELESAIAN_OPTIONS = [
   'PENINJAUAN KEMBALI'
 ];
 
-// Helper to convert Base64/DataURL to Blob
-const dataURLtoBlob = (dataurl) => {
-  if (!dataurl || typeof dataurl !== 'string' || !dataurl.startsWith('data:')) return null;
-  try {
-    const arr = dataurl.split(',');
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-    return new Blob([u8arr], { type: mime });
-  } catch (e) {
-    console.error("Failed to convert data URL to blob:", e);
-    return null;
-  }
-};
-
-// Helper to upload a File or Base64 string to Firebase Storage and get its download URL
+// Helper to upload a File or Base64 string to Cloudinary and get its secure URL
 const uploadFileOrBase64 = async (fileOrBase64, fileName, folderName, caseNo) => {
   if (!fileOrBase64) return null;
-  let fileBlob = null;
-  let name = fileName || 'document.pdf';
-  
-  if (fileOrBase64 instanceof File || fileOrBase64 instanceof Blob) {
-    fileBlob = fileOrBase64;
-    name = fileOrBase64.name || name;
-  } else if (typeof fileOrBase64 === 'string' && fileOrBase64.startsWith('data:')) {
-    fileBlob = dataURLtoBlob(fileOrBase64);
-  } else {
-    // If it is already a URL, return it directly
-    if (typeof fileOrBase64 === 'string' && (fileOrBase64.startsWith('http://') || fileOrBase64.startsWith('https://'))) {
-      return fileOrBase64;
-    }
-    return null;
+
+  // If it is already a URL, return it directly
+  if (typeof fileOrBase64 === 'string' && (fileOrBase64.startsWith('http://') || fileOrBase64.startsWith('https://'))) {
+    return fileOrBase64;
   }
-  
-  if (!fileBlob) return null;
-  
-  const sanitizedCaseNo = caseNo.replace(/[^a-zA-Z0-9]/g, '_');
-  const storageRef = ref(storage, `${folderName}/${sanitizedCaseNo}_${name}`);
-  const snapshot = await uploadBytes(storageRef, fileBlob);
-  return await getDownloadURL(snapshot.ref);
+
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset) {
+    throw new Error('Konfigurasi Cloudinary belum disetup. Mohon tambahkan VITE_CLOUDINARY_CLOUD_NAME dan VITE_CLOUDINARY_UPLOAD_PRESET di file .env.');
+  }
+
+  try {
+    const url = `https://api.cloudinary.com/v1_1/${cloudName}/upload`;
+    const formData = new FormData();
+    
+    formData.append('file', fileOrBase64);
+    formData.append('upload_preset', uploadPreset);
+    formData.append('resource_type', 'auto');
+    
+    const sanitizedCaseNo = caseNo ? caseNo.replace(/[^a-zA-Z0-9]/g, '_') : 'perkara';
+    formData.append('folder', `kumdam_perkara/${folderName}/${sanitizedCaseNo}`);
+    
+    if (fileName) {
+      const publicId = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+      const sanitizedPublicId = publicId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      formData.append('public_id', sanitizedPublicId);
+    }
+
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorResponse = await response.json();
+      throw new Error(errorResponse.error?.message || 'Gagal mengunggah berkas ke Cloudinary');
+    }
+
+    const data = await response.json();
+    return data.secure_url;
+  } catch (error) {
+    console.error("Cloudinary upload error:", error);
+    throw new Error(`Upload gagal: ${error.message}`);
+  }
 };
 
 export default function InputData() {
@@ -508,7 +512,7 @@ export default function InputData() {
       navigate('/');
     } catch (error) {
       console.error("Error during submission: ", error);
-      showToast('Gagal menyimpan data ke Firebase!', 'error');
+      showToast(error.message || 'Gagal menyimpan data!', 'error');
     } finally {
       setIsSubmitting(false);
     }
