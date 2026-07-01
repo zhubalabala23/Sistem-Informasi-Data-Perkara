@@ -495,6 +495,64 @@ export default function HalamanIsi() {
 
             </section>
 
+            {/* Video Panduan & Poin-Poin Panduan */}
+            <section className="mb-8 grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch select-none">
+              
+              {/* Kolom Kiri: Demo Penggunaan */}
+              <div className="lg:col-span-7 flex flex-col">
+                <h2 className="text-base font-extrabold text-[#0a1f3d] mb-3">
+                  Demo Penggunaan
+                </h2>
+                 <div className="w-full aspect-video rounded-xl overflow-hidden border border-black bg-slate-950 shadow-inner relative flex-1">
+                  <video
+                    controls
+                    preload="auto"
+                    playsInline
+                    className="absolute inset-0 w-full h-full object-contain bg-slate-950"
+                  >
+                    <source src="https://res.cloudinary.com/dfn1m1et4/video/upload/f_auto,q_auto/video-demo-penggunaan_mpgokf.mp4" type="video/mp4" />
+                    Browser Anda tidak mendukung tag video HTML5.
+                  </video>
+                </div>
+              </div>
+
+              {/* Kolom Kanan: Poin-Poin Panduan */}
+              <div className="lg:col-span-5 flex flex-col">
+                <h2 className="text-base font-extrabold text-[#0a1f3d] mb-3">
+                  Poin-Poin Panduan:
+                </h2>
+                <div className="flex-1 bg-white rounded-xl p-6 border border-slate-200/80 shadow-sm flex flex-col justify-center">
+                  <ul className="space-y-4 text-xs text-slate-600 leading-relaxed">
+                    <li className="flex items-start gap-1">
+                      <span className="text-blue-600 font-extrabold mr-1.5">•</span>
+                      <div>
+                        <strong className="text-slate-800 font-bold">Akses &amp; Verifikasi Kesatuan:</strong> Gunakan password utama untuk masuk, lalu pilih kesatuan militer Anda pada profil untuk memverifikasi hak akses.
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-1">
+                      <span className="text-blue-600 font-extrabold mr-1.5">•</span>
+                      <div>
+                        <strong className="text-slate-800 font-bold">Pencatatan Data Perkara:</strong> Masukkan data perkara secara rinci mulai dari nomor berkas perkara, asal satuan, jenis perkara, pasal pelanggaran, serta dokumen kronologis.
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-1">
+                      <span className="text-blue-600 font-extrabold mr-1.5">•</span>
+                      <div>
+                        <strong className="text-slate-800 font-bold">Pemantauan &amp; Rekapitulasi:</strong> Pantau ringkasan statistik perkara terbaru melalui dashboard utama dan akses tab Rekapitulasi untuk visualisasi per kategori.
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-1">
+                      <span className="text-blue-600 font-extrabold mr-1.5">•</span>
+                      <div>
+                        <strong className="text-slate-800 font-bold">Detail &amp; Ekspor Laporan:</strong> Periksa detail berkas perkara langsung pada tabel preview dan unduh dokumen lampiran kronologis (.pdf) yang tersedia.
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+            </section>
+
             {/* 5. TABLE SECTION */}
             <section className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden mb-6">
               
