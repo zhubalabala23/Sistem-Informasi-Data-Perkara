@@ -191,7 +191,7 @@ export default function DataRekapPerkara() {
       return false;
     }
     // Specific kesatuan can only delete their own cases
-    const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/e/g, '');
+    const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const cleanUserUnit = clean(loggedInKesatuan.nama);
     const cleanCaseUnit = clean(item.satuan);
     return cleanUserUnit === cleanCaseUnit || cleanCaseUnit.includes(clean(loggedInKesatuan.id)) || cleanUserUnit.includes(cleanCaseUnit);
@@ -348,7 +348,7 @@ export default function DataRekapPerkara() {
   const itemsToRender = printTarget === 'rekap' 
     ? (isKesatuanVerified && loggedInKesatuan
         ? filteredList.filter(item => {
-            const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/e/g, '');
+            const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
             const cleanSatuan = clean(item.satuan);
             const cleanLoggedInName = clean(loggedInKesatuan.nama);
             const cleanLoggedInId = clean(loggedInKesatuan.id);
@@ -547,7 +547,7 @@ export default function DataRekapPerkara() {
   const canPrintSelectedCase = selectedCase && (
     !isKesatuanVerified ||
     (loggedInKesatuan && (() => {
-      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/e/g, '');
+      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       const cleanSatuan = clean(selectedCase.satuan);
       const cleanLoggedInName = clean(loggedInKesatuan.nama);
       const cleanLoggedInId = clean(loggedInKesatuan.id);
@@ -557,7 +557,7 @@ export default function DataRekapPerkara() {
 
   const canPrintActiveUnit = !isKesatuanVerified || (
     loggedInKesatuan && (() => {
-      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/e/g, '');
+      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       const cleanActive = clean(activeUnit);
       const cleanLoggedInName = clean(loggedInKesatuan.nama);
       const cleanLoggedInId = clean(loggedInKesatuan.id);

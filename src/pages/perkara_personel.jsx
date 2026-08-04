@@ -359,7 +359,7 @@ export default function PerkaraPersonel() {
   // Permission helper: general admin can print any, specific kesatuan can only print their own
   const canPrintDossier = !isKesatuanVerified || (
     loggedInKesatuan && currentDossier && (() => {
-      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/e/g, '');
+      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       return clean(currentDossier.satuan) === clean(loggedInKesatuan.nama) || clean(currentDossier.satuan).includes(clean(loggedInKesatuan.id)) || clean(loggedInKesatuan.nama).includes(clean(currentDossier.satuan));
     })()
   );

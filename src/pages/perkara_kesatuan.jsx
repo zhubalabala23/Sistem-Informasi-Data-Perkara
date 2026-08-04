@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  BarChart3, 
-  Settings, 
-  Plus, 
-  HelpCircle, 
+import {
+  LayoutDashboard,
+  FileText,
+  BarChart3,
+  Settings,
+  Plus,
+  HelpCircle,
   LogOut,
   Search,
   Filter,
@@ -84,13 +84,13 @@ const renderPutusanCell = (item) => {
       ) : (
         <span className="text-slate-400 italic font-semibold">{item.putusan || '-'}</span>
       )}
-      
+
       {!hasTexts && item.dokumenPutusan && typeof item.dokumenPutusan === 'string' && !item.dokumenPutusan.startsWith('data:') && (
         <div className="text-[9px] text-slate-500 mt-1 font-semibold border-t border-slate-100 pt-1 leading-normal">
           {item.dokumenPutusan}
         </div>
       )}
-      
+
       {(hasSalinan || hasPetikan || hasAkte) && (
         <div className="flex flex-wrap gap-1 mt-1.5 select-none" onClick={(e) => e.stopPropagation()}>
           {hasSalinan && (
@@ -129,7 +129,7 @@ const renderPutusanCell = (item) => {
 const KESATUAN_OPTIONS = [
   { id: 'POMDAM', nama: 'POMDAM XVII/CENDERAWASIH' },
   { id: 'ZIDAM', nama: 'ZIDAM XVII/CENDERAWASIH' },
-  { id: 'KOMLEKDAM', nama: 'KOMLEKDAM XVII/CENDERAWASIH' },
+  { id: 'BEKANGDAM', nama: 'BEKANGDAM XVII/CENDERAWASIH' },
   { id: 'RINDAM', nama: 'RINDAM XVII/CENDERAWASIH' }
 ];
 
@@ -189,7 +189,7 @@ export default function PerkaraKesatuan() {
   // Permission helper: general admin can print any, specific kesatuan can only print their own
   const canPrintUnit = !isKesatuanVerified || (
     loggedInKesatuan && selectedKesatuan && (() => {
-      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/e/g, '');
+      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       return clean(selectedKesatuan.nama) === clean(loggedInKesatuan.nama) || clean(selectedKesatuan.id) === clean(loggedInKesatuan.id);
     })()
   );
@@ -255,33 +255,33 @@ export default function PerkaraKesatuan() {
         const querySnapshot = await getDocs(collection(db, 'perkara'));
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-            firestoreList.push({
-              id: doc.id,
-              noPerkara: data.noPerkara || '',
-              namaLengkap: data.namaLengkap,
-              nrpNip: data.nrpNip,
-              pangkat: data.pangkat,
-              satuan: data.satuan,
-              jenisPerkara: data.jenisPerkara,
-              kategoriPelanggaran: data.kategoriPelanggaran || '',
-              pasal: data.pasal || '',
-              tahapPenyelesaian: data.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (data.tahapPenyelesaian?.toUpperCase() || (data.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL')),
-              putusan: data.putusan || (data.status === 'SELESAI' ? 'Selesai' : '-'),
-              pidanaPokok: data.pidanaPokok || '',
-              pidanaTambahan: data.pidanaTambahan || '',
-              noSalinanPutusan: data.noSalinanPutusan || '',
-              noPetikanPutusan: data.noPetikanPutusan || '',
-              noAkteBht: data.noAkteBht || '',
-              salinanPutusan: data.salinanPutusan || null,
-              salinanPutusanName: data.salinanPutusanName || '',
-              petikanPutusan: data.petikanPutusan || null,
-              petikanPutusanName: data.petikanPutusanName || '',
-              akteBht: data.akteBht || null,
-              akteBhtName: data.akteBhtName || '',
-              fileUrl: data.fileUrl || null,
-              fileName: data.fileName || '',
-              status: data.status || ''
-            });
+          firestoreList.push({
+            id: doc.id,
+            noPerkara: data.noPerkara || '',
+            namaLengkap: data.namaLengkap,
+            nrpNip: data.nrpNip,
+            pangkat: data.pangkat,
+            satuan: data.satuan,
+            jenisPerkara: data.jenisPerkara,
+            kategoriPelanggaran: data.kategoriPelanggaran || '',
+            pasal: data.pasal || '',
+            tahapPenyelesaian: data.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (data.tahapPenyelesaian?.toUpperCase() || (data.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL')),
+            putusan: data.putusan || (data.status === 'SELESAI' ? 'Selesai' : '-'),
+            pidanaPokok: data.pidanaPokok || '',
+            pidanaTambahan: data.pidanaTambahan || '',
+            noSalinanPutusan: data.noSalinanPutusan || '',
+            noPetikanPutusan: data.noPetikanPutusan || '',
+            noAkteBht: data.noAkteBht || '',
+            salinanPutusan: data.salinanPutusan || null,
+            salinanPutusanName: data.salinanPutusanName || '',
+            petikanPutusan: data.petikanPutusan || null,
+            petikanPutusanName: data.petikanPutusanName || '',
+            akteBht: data.akteBht || null,
+            akteBhtName: data.akteBhtName || '',
+            fileUrl: data.fileUrl || null,
+            fileName: data.fileName || '',
+            status: data.status || ''
+          });
         });
       } catch (error) {
         console.warn("Could not load Firestore. Using fallbacks.", error);
@@ -335,7 +335,7 @@ export default function PerkaraKesatuan() {
           uniqueList.push(item);
         }
       });
-      
+
       MOCK_KESATUAN_DATA.forEach(mockItem => {
         if (!seen.has(mockItem.nrpNip)) {
           seen.add(mockItem.nrpNip);
@@ -368,29 +368,29 @@ export default function PerkaraKesatuan() {
     // Only show cases belonging to the selected unit (with spelling-tolerant matching)
     const matchesUnit = (() => {
       if (!satuanStr) return false;
-      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/e/g, '');
+      const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       const cleanSatuan = clean(satuanStr);
       const cleanSelectedName = clean(selectedKesatuan.nama);
       const cleanSelectedId = clean(selectedKesatuan.id);
-      const result = cleanSatuan.includes(cleanSelectedName) || 
-                     cleanSelectedName.includes(cleanSatuan) || 
-                     cleanSatuan.includes(cleanSelectedId);
-      console.log(`[matchesUnit] Checking "${item.namaLengkap}" (${satuanStr}) vs Selected (${selectedKesatuan.nama}): ${result}`);
+      const result = cleanSatuan.includes(cleanSelectedName) ||
+        cleanSelectedName.includes(cleanSatuan) ||
+        cleanSatuan.includes(cleanSelectedId) ||
+        cleanSelectedId.includes(cleanSatuan);
       return result;
     })();
 
-    const matchesSearch = 
-      filterSearch === '' || 
-      nameStr.toLowerCase().includes(filterSearch.toLowerCase()) || 
+    const matchesSearch =
+      filterSearch === '' ||
+      nameStr.toLowerCase().includes(filterSearch.toLowerCase()) ||
       nrpStr.includes(filterSearch);
 
-    const matchesPerkara = 
-      filterPerkara === '' || 
+    const matchesPerkara =
+      filterPerkara === '' ||
       jenisStr.toLowerCase().includes(filterPerkara.toLowerCase()) ||
       (item.kategoriPelanggaran || '').toLowerCase().includes(filterPerkara.toLowerCase());
 
-    const matchesTahap = 
-      filterTahap === '' || 
+    const matchesTahap =
+      filterTahap === '' ||
       item.tahapPenyelesaian === filterTahap;
 
     return matchesUnit && matchesSearch && matchesPerkara && matchesTahap;
@@ -439,11 +439,11 @@ export default function PerkaraKesatuan() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc] text-slate-800 print:bg-white print:text-black">
-      
+
       {/* 1. TOP NAVBAR (Consistent layout, print hidden) */}
       <header className="sticky top-0 h-16 bg-[#0a1f3d] flex items-center justify-between px-6 text-white shadow-md z-50 select-none print:hidden">
         <div className="flex items-center gap-4 md:gap-12 h-full min-w-0">
-          <button 
+          <button
             type="button"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="md:hidden p-2 -ml-2 text-slate-300 hover:text-white rounded-lg focus:outline-none"
@@ -458,7 +458,7 @@ export default function PerkaraKesatuan() {
               <span className="hidden sm:inline">Sistem Informasi Data Perkara</span>
             </Link>
           </div>
-          
+
           {/* Nav Tabs */}
           <nav className="hidden md:flex items-center gap-6 h-full text-sm font-semibold">
             <Link to="/" className="h-full flex items-center text-slate-300 hover:text-white border-b-2 border-transparent hover:border-slate-400 px-1 transition-all duration-200">
@@ -495,21 +495,20 @@ export default function PerkaraKesatuan() {
       </header>
 
       <div className="flex-1 flex flex-row overflow-hidden">
-        
+
         {/* Backdrop for mobile */}
         {isSidebarOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 md:hidden animate-in fade-in duration-200"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
 
         {/* 2. SIDEBAR (print hidden) */}
-        <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col justify-between select-none transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } print:hidden`}>
+        <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col justify-between select-none transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          } print:hidden`}>
           <div className="py-6 flex flex-col">
-            
+
             {/* Kumdam Emblem and Label */}
             <div className="flex items-center justify-between px-6 mb-8">
               <div className="flex items-center gap-3">
@@ -519,7 +518,7 @@ export default function PerkaraKesatuan() {
                   <span className="text-[10px] text-slate-500 font-bold tracking-widest">CENDERAWASIH</span>
                 </div>
               </div>
-              <button 
+              <button
                 type="button"
                 onClick={() => setIsSidebarOpen(false)}
                 className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition"
@@ -531,8 +530,8 @@ export default function PerkaraKesatuan() {
             {/* Sidebar Menus */}
             <nav className="flex flex-col gap-1 px-3">
               {/* DESKTOP-ONLY LINK */}
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 className="hidden md:flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
                 <LayoutDashboard size={18} />
@@ -540,8 +539,8 @@ export default function PerkaraKesatuan() {
               </Link>
 
               {/* MOBILE-ONLY LINK */}
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 onClick={() => setIsSidebarOpen(false)}
                 className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
@@ -549,8 +548,8 @@ export default function PerkaraKesatuan() {
                 <span>Halaman Isi</span>
               </Link>
 
-              <Link 
-                to="/input-data" 
+              <Link
+                to="/input-data"
                 onClick={() => setIsSidebarOpen(false)}
                 className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
@@ -559,8 +558,8 @@ export default function PerkaraKesatuan() {
               </Link>
 
               {/* DESKTOP-ONLY LINK */}
-              <Link 
-                to="/rekap-perkara" 
+              <Link
+                to="/rekap-perkara"
                 className="hidden md:flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
                 <BarChart3 size={18} />
@@ -568,8 +567,8 @@ export default function PerkaraKesatuan() {
               </Link>
 
               {/* MOBILE-ONLY LINK */}
-              <Link 
-                to="/rekap-perkara" 
+              <Link
+                to="/rekap-perkara"
                 onClick={() => setIsSidebarOpen(false)}
                 className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
@@ -577,8 +576,8 @@ export default function PerkaraKesatuan() {
                 <span>Data Rekap Perkara</span>
               </Link>
 
-              <Link 
-                to="/perkara-kesatuan" 
+              <Link
+                to="/perkara-kesatuan"
                 onClick={() => setIsSidebarOpen(false)}
                 className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold bg-blue-50 text-blue-600 border-l-4 border-blue-600 transition-all"
               >
@@ -586,8 +585,8 @@ export default function PerkaraKesatuan() {
                 <span>Perkara Kesatuan</span>
               </Link>
 
-              <Link 
-                to="/perkara-personel" 
+              <Link
+                to="/perkara-personel"
                 onClick={() => setIsSidebarOpen(false)}
                 className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
@@ -597,7 +596,7 @@ export default function PerkaraKesatuan() {
             </nav>
 
             {/* Tambah Perkara Button */}
-            <Link 
+            <Link
               to="/input-data"
               onClick={() => setIsSidebarOpen(false)}
               className="mx-4 mt-6 py-2.5 px-4 bg-[#0a1d37] hover:bg-[#11315c] text-white rounded-lg flex items-center justify-center gap-2 font-bold text-xs transition-all duration-150 active:scale-[0.98] shadow-md shadow-blue-900/10"
@@ -626,7 +625,7 @@ export default function PerkaraKesatuan() {
         {/* 3. MAIN CONTENT AREA */}
         <main className="flex-1 bg-[#f8fafc] p-6 lg:p-8 overflow-y-auto flex flex-col justify-between print:p-0 print:bg-white">
           <div>
-            
+
             {/* Breadcrumb (print hidden) */}
             <div className="text-[10px] text-slate-400 font-bold tracking-widest mb-1 select-none flex items-center gap-1.5 print:hidden">
               <span>DASHBOARD</span>
@@ -665,7 +664,7 @@ export default function PerkaraKesatuan() {
             {/* 4. FILTER FORM BLOCK (print hidden) */}
             <form onSubmit={handleApplyFilter} className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm mb-6 print:hidden">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
-                
+
                 {/* Search query */}
                 <div>
                   <label htmlFor="searchQuery" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5 select-none">
@@ -747,7 +746,7 @@ export default function PerkaraKesatuan() {
                     Daftar Perkara Kesatuan
                   </h3>
                 </div>
-                
+
                 {canPrintUnit && (
                   <button
                     type="button"
@@ -759,7 +758,7 @@ export default function PerkaraKesatuan() {
                   </button>
                 )}
               </div>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -778,7 +777,7 @@ export default function PerkaraKesatuan() {
                     {paginatedList.map((item, idx) => {
                       // Color schemes matching tahapan
                       let badgeStyle = "border-slate-300 text-slate-500 bg-slate-50";
-                      
+
                       const tLower = (item.tahapPenyelesaian || '').toLowerCase();
                       if (tLower.includes('sidang') || tLower.includes('dilmil') || tLower.includes('pengadilan negeri') || tLower.includes('pengadilan agama') || tLower.includes('tata usaha negara')) {
                         badgeStyle = "border-blue-400 text-blue-600 bg-blue-50/50";
@@ -840,31 +839,30 @@ export default function PerkaraKesatuan() {
                 <span className="font-semibold text-slate-500">
                   Menampilkan {paginatedList.length > 0 ? `${startIndex + 1} - ${startIndex + paginatedList.length}` : '0'} dari {filteredList.length} data perkara
                 </span>
-                
+
                 <div className="flex items-center gap-1">
-                  <button 
+                  <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
                     className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
                   >
                     <ChevronLeft size={16} />
                   </button>
-                  
+
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
                     <button
                       key={p}
                       onClick={() => handlePageChange(p)}
-                      className={`w-7 h-7 rounded-lg text-xs font-bold transition ${
-                        currentPage === p 
-                          ? 'bg-[#0a1f3d] text-white' 
+                      className={`w-7 h-7 rounded-lg text-xs font-bold transition ${currentPage === p
+                          ? 'bg-[#0a1f3d] text-white'
                           : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
-                      }`}
+                        }`}
                     >
                       {p}
                     </button>
                   ))}
 
-                  <button 
+                  <button
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition"
@@ -896,10 +894,10 @@ export default function PerkaraKesatuan() {
       {isExportOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200 select-none">
           <div className="w-full max-w-sm bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
-            
+
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <span className="font-extrabold text-sm text-slate-800 uppercase tracking-wide">Export Laporan PDF</span>
-              <button 
+              <button
                 onClick={() => setIsExportOpen(false)}
                 disabled={exportStep === 'processing'}
                 className="p-1 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition disabled:opacity-30"
@@ -914,7 +912,7 @@ export default function PerkaraKesatuan() {
                   <p className="text-xs text-slate-500 font-semibold leading-relaxed">
                     Unduh berkas PDF Rekapitulasi Perkara Satuan KODAM XVII/CENDERAWASIH (Total {filteredList.length} data):
                   </p>
-                  
+
                   <button
                     type="button"
                     onClick={startExportSimulation}

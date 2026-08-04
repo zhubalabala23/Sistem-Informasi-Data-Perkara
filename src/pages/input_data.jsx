@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  FileText, 
-  BarChart3, 
-  Settings, 
-  Plus, 
-  HelpCircle, 
-  LogOut, 
+import {
+  LayoutDashboard,
+  FileText,
+  BarChart3,
+  Settings,
+  Plus,
+  HelpCircle,
+  LogOut,
   Database,
   Lock,
   Unlock,
@@ -36,7 +36,7 @@ const KumdamLogo = () => (
 const KESATUAN_OPTIONS = [
   { id: 'POMDAM', nama: 'POMDAM XVII/CENDERAWASIH', key: '123', icon: '🏛️' },
   { id: 'ZIDAM', nama: 'ZIDAM XVII/CENDERAWASIH', key: '123', icon: '⚙️' },
-  { id: 'KOMLEKDAM', nama: 'KOMLEKDAM XVII/CENDERAWASIH', key: '123', icon: '📡' },
+  { id: 'RINDAM', nama: 'RINDAM XVII/CENDERAWASIH', key: '123', icon: '🎖️' },
   { id: 'BEKANGDAM', nama: 'BEKANGDAM XVII/CENDERAWASIH', key: '123', icon: '🚚' }
 ];
 
@@ -95,14 +95,14 @@ const uploadFileOrBase64 = async (fileOrBase64, fileName, folderName, caseNo) =>
   try {
     const url = `https://api.cloudinary.com/v1_1/${cloudName}/upload`;
     const formData = new FormData();
-    
+
     formData.append('file', fileOrBase64);
     formData.append('upload_preset', uploadPreset);
     formData.append('resource_type', 'auto');
-    
+
     const sanitizedCaseNo = caseNo ? caseNo.replace(/[^a-zA-Z0-9]/g, '_') : 'perkara';
     formData.append('folder', `kumdam_perkara/${folderName}/${sanitizedCaseNo}`);
-    
+
     if (fileName) {
       const publicId = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
       const sanitizedPublicId = publicId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -134,7 +134,7 @@ export default function InputData() {
   const fileInputRef = useRef(null);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Selection and Verification states
   const [selectedKesatuan, setSelectedKesatuan] = useState(() => {
     const saved = sessionStorage.getItem('selected_kesatuan');
@@ -151,13 +151,13 @@ export default function InputData() {
     sessionStorage.setItem('selected_kesatuan', JSON.stringify(defaultKesatuan));
     return defaultKesatuan;
   });
-  
+
   const [accessKey, setAccessKey] = useState('');
   const [currentStep, setCurrentStep] = useState(() => {
     const savedStep = sessionStorage.getItem('temp_current_step');
     return savedStep ? parseInt(savedStep, 10) : 1;
   });
-  
+
   const [isVerified, setIsVerified] = useState(() => {
     return sessionStorage.getItem('is_kesatuan_verified') === 'true';
   });
@@ -197,7 +197,7 @@ export default function InputData() {
       akteBhtName: ''
     };
   });
-  
+
   const [uploadedFile, setUploadedFile] = useState(() => {
     const savedFile = sessionStorage.getItem('temp_uploaded_file');
     if (savedFile) {
@@ -257,7 +257,7 @@ export default function InputData() {
       showToast('Masukkan kunci akses terlebih dahulu!', 'error');
       return;
     }
-    
+
     // We match the key defined in the KESATUAN_OPTIONS
     if (accessKey === selectedKesatuan.key || accessKey === '123') {
       setIsVerified(true);
@@ -362,13 +362,13 @@ export default function InputData() {
         return;
       }
       setUploadedFile(file);
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         sessionStorage.setItem('temp_uploaded_file_base64', reader.result);
       };
       reader.readAsDataURL(file);
-      
+
       showToast(`Berkas "${file.name}" berhasil dipilih.`);
     }
   };
@@ -380,7 +380,7 @@ export default function InputData() {
   // Submit Form
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!isVerified) {
       showToast('Harap verifikasi kunci akses kesatuan terlebih dahulu!', 'error');
       return;
@@ -395,8 +395,8 @@ export default function InputData() {
     showToast('Sedang memproses data & mengunggah berkas...', 'info');
 
     // Generate a case number if the user did not provide one
-    const generatedNoPerkara = formData.noPerkara 
-      ? formData.noPerkara.toUpperCase() 
+    const generatedNoPerkara = formData.noPerkara
+      ? formData.noPerkara.toUpperCase()
       : `P-${Math.floor(Math.random() * 200 + 10)}/MIL/${new Date().getFullYear()}`;
 
     try {
@@ -411,9 +411,9 @@ export default function InputData() {
       const base64FromSession = sessionStorage.getItem('temp_uploaded_file_base64');
       if (uploadedFile || base64FromSession) {
         uploadedFileUrl = await uploadFileOrBase64(
-          uploadedFile || base64FromSession, 
-          uploadedFile?.name || formData.fileName || 'dokumen_kronologis.pdf', 
-          'dokumen_kronologis', 
+          uploadedFile || base64FromSession,
+          uploadedFile?.name || formData.fileName || 'dokumen_kronologis.pdf',
+          'dokumen_kronologis',
           generatedNoPerkara
         );
       }
@@ -421,9 +421,9 @@ export default function InputData() {
       // Personnel Photo
       if (formData.fotoPersonel) {
         fotoPersonelUrl = await uploadFileOrBase64(
-          formData.fotoPersonel, 
-          'foto_personel.jpg', 
-          'foto_personel', 
+          formData.fotoPersonel,
+          'foto_personel.jpg',
+          'foto_personel',
           generatedNoPerkara
         );
       }
@@ -431,9 +431,9 @@ export default function InputData() {
       // Salinan Putusan
       if (formData.salinanPutusan) {
         salinanPutusanUrl = await uploadFileOrBase64(
-          formData.salinanPutusan, 
-          formData.salinanPutusanName || 'salinan_putusan.pdf', 
-          'salinan_putusan', 
+          formData.salinanPutusan,
+          formData.salinanPutusanName || 'salinan_putusan.pdf',
+          'salinan_putusan',
           generatedNoPerkara
         );
       }
@@ -441,9 +441,9 @@ export default function InputData() {
       // Petikan Putusan
       if (formData.petikanPutusan) {
         petikanPutusanUrl = await uploadFileOrBase64(
-          formData.petikanPutusan, 
-          formData.petikanPutusanName || 'petikan_putusan.pdf', 
-          'petikan_putusan', 
+          formData.petikanPutusan,
+          formData.petikanPutusanName || 'petikan_putusan.pdf',
+          'petikan_putusan',
           generatedNoPerkara
         );
       }
@@ -451,9 +451,9 @@ export default function InputData() {
       // Akte BHT
       if (formData.akteBht) {
         akteBhtUrl = await uploadFileOrBase64(
-          formData.akteBht, 
-          formData.akteBhtName || 'akte_bht.pdf', 
-          'akte_bht', 
+          formData.akteBht,
+          formData.akteBhtName || 'akte_bht.pdf',
+          'akte_bht',
           generatedNoPerkara
         );
       }
@@ -520,11 +520,11 @@ export default function InputData() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc] text-slate-800">
-      
+
       {/* 1. TOP NAVBAR */}
       <header className="sticky top-0 h-16 bg-[#0a1f3d] flex items-center justify-between px-6 text-white shadow-md z-50 select-none">
         <div className="flex items-center gap-4 md:gap-12 h-full min-w-0">
-          <button 
+          <button
             type="button"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="md:hidden p-2 -ml-2 text-slate-300 hover:text-white rounded-lg focus:outline-none"
@@ -539,7 +539,7 @@ export default function InputData() {
               <span className="hidden sm:inline">Sistem Informasi Data Perkara</span>
             </Link>
           </div>
-          
+
           {/* Nav Tabs */}
           <nav className="hidden md:flex items-center gap-6 h-full text-sm font-semibold">
             <Link to="/" className="h-full flex items-center text-slate-300 hover:text-white border-b-2 border-transparent hover:border-slate-400 px-1 transition-all duration-200">
@@ -576,21 +576,20 @@ export default function InputData() {
       </header>
 
       <div className="flex-1 flex flex-row overflow-hidden">
-        
+
         {/* Backdrop for mobile */}
         {isSidebarOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 md:hidden animate-in fade-in duration-200"
             onClick={() => setIsSidebarOpen(false)}
           />
         )}
 
         {/* 2. SIDEBAR (Identical to halaman_isi.jsx) */}
-        <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col justify-between select-none transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}>
+        <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 flex flex-col justify-between select-none transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}>
           <div className="py-6 flex flex-col">
-            
+
             {/* Kumdam Emblem and Label */}
             <div className="flex items-center justify-between px-6 mb-8">
               <div className="flex items-center gap-3">
@@ -600,7 +599,7 @@ export default function InputData() {
                   <span className="text-[10px] text-slate-500 font-bold tracking-widest">CENDERAWASIH</span>
                 </div>
               </div>
-              <button 
+              <button
                 type="button"
                 onClick={() => setIsSidebarOpen(false)}
                 className="md:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition"
@@ -612,8 +611,8 @@ export default function InputData() {
             {/* Sidebar Menus */}
             <nav className="flex flex-col gap-1 px-3">
               {/* DESKTOP-ONLY LINK */}
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 className="hidden md:flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
                 <LayoutDashboard size={18} />
@@ -621,8 +620,8 @@ export default function InputData() {
               </Link>
 
               {/* MOBILE-ONLY LINK */}
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 onClick={() => setIsSidebarOpen(false)}
                 className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
@@ -630,8 +629,8 @@ export default function InputData() {
                 <span>Halaman Isi</span>
               </Link>
 
-              <Link 
-                to="/input-data" 
+              <Link
+                to="/input-data"
                 onClick={() => setIsSidebarOpen(false)}
                 className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold bg-blue-50 text-blue-600 border-l-4 border-blue-600 transition-all"
               >
@@ -640,8 +639,8 @@ export default function InputData() {
               </Link>
 
               {/* DESKTOP-ONLY LINK */}
-              <Link 
-                to="/rekap-perkara" 
+              <Link
+                to="/rekap-perkara"
                 className="hidden md:flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
                 <BarChart3 size={18} />
@@ -649,8 +648,8 @@ export default function InputData() {
               </Link>
 
               {/* MOBILE-ONLY LINK */}
-              <Link 
-                to="/rekap-perkara" 
+              <Link
+                to="/rekap-perkara"
                 onClick={() => setIsSidebarOpen(false)}
                 className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
@@ -658,8 +657,8 @@ export default function InputData() {
                 <span>Data Rekap Perkara</span>
               </Link>
 
-              <Link 
-                to="/perkara-kesatuan" 
+              <Link
+                to="/perkara-kesatuan"
                 onClick={() => setIsSidebarOpen(false)}
                 className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
@@ -667,8 +666,8 @@ export default function InputData() {
                 <span>Perkara Kesatuan</span>
               </Link>
 
-              <Link 
-                to="/perkara-personel" 
+              <Link
+                to="/perkara-personel"
                 onClick={() => setIsSidebarOpen(false)}
                 className="md:hidden flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
               >
@@ -678,7 +677,7 @@ export default function InputData() {
             </nav>
 
             {/* Tambah Perkara Button */}
-            <Link 
+            <Link
               to="/input-data"
               onClick={() => setIsSidebarOpen(false)}
               className="mx-4 mt-6 py-2.5 px-4 bg-[#0a1d37] hover:bg-[#11315c] text-white rounded-lg flex items-center justify-center gap-2 font-bold text-xs transition-all duration-150 active:scale-[0.98] shadow-md shadow-blue-900/10"
@@ -707,7 +706,7 @@ export default function InputData() {
         {/* 3. MAIN CONTENT AREA */}
         <main className="flex-1 bg-[#f8fafc] p-6 lg:p-8 overflow-y-auto flex flex-col justify-between">
           <div>
-            
+
             {/* Title Section with vertical bar */}
             <div className="flex items-center gap-3 border-l-4 border-[#0a1f3d] pl-4 mb-6 select-none">
               <h2 className="text-sm font-extrabold text-[#0a1f3d] uppercase tracking-wider">
@@ -718,24 +717,16 @@ export default function InputData() {
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 select-none">
               {KESATUAN_OPTIONS.map((item) => {
                 const isSelected = selectedKesatuan.id === item.id;
-                const isDisabled = isVerified && !isSelected;
                 return (
                   <div
                     key={item.id}
                     onClick={() => {
-                      if (isVerified) {
-                        showToast('Silakan logout terlebih dahulu untuk mengganti kesatuan!', 'warning');
-                        return;
-                      }
                       handleSelectKesatuan(item);
                     }}
-                    className={`p-5 rounded-xl border relative overflow-hidden transition-all duration-200 flex flex-col justify-between h-28 group ${
-                      isSelected 
-                        ? 'bg-[#0f2444] text-white border-blue-500 shadow-md ring-2 ring-amber-500/80 scale-[1.01] cursor-default' 
-                        : isDisabled
-                          ? 'bg-[#0a1f3d]/50 text-slate-500 border-slate-800 opacity-40 cursor-not-allowed'
-                          : 'bg-[#0a1f3d] text-slate-300 border-slate-700 hover:bg-[#112d54] hover:text-white cursor-pointer'
-                    }`}
+                    className={`p-5 rounded-xl border relative overflow-hidden transition-all duration-200 flex flex-col justify-between h-28 group cursor-pointer ${isSelected
+                        ? 'bg-[#0f2444] text-white border-blue-500 shadow-md ring-2 ring-amber-500/80 scale-[1.01]'
+                        : 'bg-[#0a1f3d] text-slate-300 border-slate-700 hover:bg-[#112d54] hover:text-white'
+                      }`}
                   >
                     <div className="flex justify-between items-start">
                       <span className="font-bold text-xs uppercase tracking-wider leading-relaxed max-w-[85%]">
@@ -780,17 +771,16 @@ export default function InputData() {
                   onChange={(e) => setAccessKey(e.target.value)}
                   disabled={isVerified}
                   placeholder={isVerified ? "TERVERIFIKASI" : "KUNCI AKSES"}
-                  className={`border rounded-lg px-3 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-full sm:w-44 transition-all ${
-                    isVerified 
-                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200 font-bold' 
+                  className={`border rounded-lg px-3 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-full sm:w-44 transition-all ${isVerified
+                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200 font-bold'
                       : 'border-slate-200 bg-slate-50 text-slate-700 font-mono tracking-widest'
-                  }`}
+                    }`}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleVerify();
                   }}
                 />
-                
-                {!isVerified && (
+
+                {!isVerified ? (
                   <button
                     type="button"
                     onClick={handleVerify}
@@ -798,13 +788,26 @@ export default function InputData() {
                   >
                     VERIFIKASI
                   </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsVerified(false);
+                      sessionStorage.setItem('is_kesatuan_verified', 'false');
+                      setAccessKey('');
+                      showToast('Silakan pilih kesatuan lain atau masukkan kunci akses baru.', 'info');
+                    }}
+                    className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-extrabold tracking-wider rounded-lg transition active:scale-[0.98] whitespace-nowrap"
+                  >
+                    UBAH KESATUAN
+                  </button>
                 )}
               </div>
             </section>
 
             {/* 6. MAIN FORM SECTION */}
             <form onSubmit={handleSubmit} className="relative">
-              
+
               {/* Form locked overlay if not verified */}
               {!isVerified && (
                 <div className="absolute inset-0 bg-slate-50/50 backdrop-blur-[2px] z-30 rounded-xl flex flex-col items-center justify-center p-6 text-center select-none border border-dashed border-slate-300">
@@ -819,7 +822,7 @@ export default function InputData() {
               )}
 
               <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-6 lg:p-8 mb-6">
-                
+
                 {/* Form Title */}
                 <div className="flex items-center gap-2 pb-4 mb-6 border-b border-slate-100 select-none">
                   <FileText className="text-slate-400" size={20} />
@@ -831,26 +834,24 @@ export default function InputData() {
                 {/* Stepper Progress */}
                 <div className="flex items-center justify-center gap-4 mb-8 select-none border-b border-slate-100 pb-6">
                   <div className="flex items-center gap-2">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
-                      currentStep === 1 
-                        ? 'bg-[#0a1f3d] text-white ring-4 ring-[#0a1f3d]/10' 
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${currentStep === 1
+                        ? 'bg-[#0a1f3d] text-white ring-4 ring-[#0a1f3d]/10'
                         : 'bg-emerald-500 text-white'
-                    }`}>
+                      }`}>
                       {currentStep > 1 ? '✓' : '1'}
                     </div>
                     <span className={`text-[10px] font-extrabold tracking-wider ${currentStep === 1 ? 'text-[#0a1f3d]' : 'text-slate-400'}`}>
                       IDENTITAS & JENIS PERKARA
                     </span>
                   </div>
-                  
+
                   <div className="w-8 h-0.5 bg-slate-200 rounded"></div>
-                  
+
                   <div className="flex items-center gap-2">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
-                      currentStep === 2 
-                        ? 'bg-[#0a1f3d] text-white ring-4 ring-[#0a1f3d]/10' 
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${currentStep === 2
+                        ? 'bg-[#0a1f3d] text-white ring-4 ring-[#0a1f3d]/10'
                         : 'bg-slate-200 text-slate-400'
-                    }`}>
+                      }`}>
                       2
                     </div>
                     <span className={`text-[10px] font-extrabold tracking-wider ${currentStep === 2 ? 'text-[#0a1f3d]' : 'text-slate-400'}`}>
@@ -864,10 +865,10 @@ export default function InputData() {
                      LANGKAH 1: IDENTITAS & JENIS PERKARA
                      ======================================================== */
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-200">
-                    
+
                     {/* LEFT COLUMN */}
                     <div className="flex flex-col gap-5">
-                      
+
                       {/* Nama Kesatuan (Prefilled from top cards) */}
                       <div>
                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5 select-none">
@@ -920,7 +921,7 @@ export default function InputData() {
 
                     {/* RIGHT COLUMN */}
                     <div className="flex flex-col gap-5">
-                      
+
                       {/* Data Personel Terkait */}
                       <div className="border border-slate-100 bg-[#f8fafc]/60 rounded-xl p-4 flex flex-col gap-4">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 block select-none">
@@ -1040,10 +1041,10 @@ export default function InputData() {
                      LANGKAH 2: DETAIL & DOKUMEN PERKARA
                      ======================================================== */
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in duration-200">
-                    
+
                     {/* LEFT COLUMN */}
                     <div className="flex flex-col gap-5">
-                      
+
                       {/* Perkara Dropdown (Sub-categories) */}
                       <div>
                         <label htmlFor="kategoriPelanggaran" className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5 select-none">
@@ -1101,7 +1102,7 @@ export default function InputData() {
                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5 select-none">
                           Dokumen Kronologis
                         </label>
-                        
+
                         <input
                           type="file"
                           ref={fileInputRef}
@@ -1109,13 +1110,13 @@ export default function InputData() {
                           className="hidden"
                           accept=".pdf,.jpg,.jpeg,.png"
                         />
-                        
-                        <div 
+
+                        <div
                           onClick={triggerFileSelect}
                           className="border-2 border-dashed border-slate-300/80 bg-slate-50 hover:bg-slate-100/60 rounded-xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5 group"
                         >
                           <UploadCloud size={32} className="text-slate-400 group-hover:text-blue-500 group-hover:scale-105 transition-all duration-200" />
-                          
+
                           {uploadedFile ? (
                             <div className="flex flex-col items-center">
                               <span className="text-xs font-bold text-emerald-600 flex items-center gap-1.5">
@@ -1138,7 +1139,7 @@ export default function InputData() {
                               </span>
                             </>
                           )}
-                          
+
                           <button
                             type="button"
                             className="mt-1 px-4 py-1.5 bg-[#00b272] hover:bg-[#00965f] text-white text-[9px] font-extrabold tracking-wider rounded-lg transition active:scale-[0.98] shadow-sm select-none"
@@ -1152,13 +1153,13 @@ export default function InputData() {
 
                     {/* RIGHT COLUMN */}
                     <div className="flex flex-col gap-5">
-                      
+
                       {/* Dokumen Putusan (PDF) */}
                       <div className="border border-slate-100 bg-[#f8fafc]/60 rounded-xl p-4 flex flex-col gap-4">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 block select-none">
                           Dokumen Putusan (Format PDF)
                         </span>
-                        
+
                         {/* Salinan Putusan */}
                         <div className="border-b border-slate-100 pb-3">
                           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1 select-none">
@@ -1301,8 +1302,8 @@ export default function InputData() {
                           <ChevronLeft size={16} />
                           <span>KEMBALI</span>
                         </button>
-                        
-                         <button
+
+                        <button
                           type="submit"
                           disabled={isSubmitting}
                           className="py-3 bg-[#0a1f3d] hover:bg-[#122e54] text-white rounded-lg flex items-center justify-center gap-2 font-bold text-xs tracking-wider transition-all duration-150 active:scale-[0.98] shadow-md shadow-blue-900/10 disabled:opacity-60 disabled:cursor-not-allowed"

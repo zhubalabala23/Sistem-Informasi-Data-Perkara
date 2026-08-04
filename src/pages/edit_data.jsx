@@ -180,7 +180,7 @@ export default function EditData() {
     if (!isKesatuanVerified || !loggedInKesatuan) {
       return false;
     }
-    const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/e/g, '');
+    const clean = (str) => (str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const cleanUserUnit = clean(loggedInKesatuan.nama);
     const cleanCaseUnit = clean(caseSatuan);
     return cleanUserUnit === cleanCaseUnit || cleanCaseUnit.includes(clean(loggedInKesatuan.id)) || cleanUserUnit.includes(cleanCaseUnit);
