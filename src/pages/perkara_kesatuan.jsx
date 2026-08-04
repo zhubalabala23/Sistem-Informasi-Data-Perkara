@@ -321,7 +321,7 @@ export default function PerkaraKesatuan() {
       const uniqueList = [];
       const seen = new Set();
       firestoreList.forEach(item => {
-        const key = item.noPerkara || item.id || item.nrpNip;
+        const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
         if (key && !seen.has(key)) {
           seen.add(key);
           uniqueList.push(item);
@@ -329,7 +329,7 @@ export default function PerkaraKesatuan() {
       });
 
       mappedLocal.forEach(item => {
-        const key = item.noPerkara || item.id || item.nrpNip;
+        const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
         if (key && !seen.has(key)) {
           seen.add(key);
           uniqueList.push(item);
@@ -337,8 +337,9 @@ export default function PerkaraKesatuan() {
       });
 
       MOCK_KESATUAN_DATA.forEach(mockItem => {
-        if (!seen.has(mockItem.nrpNip)) {
-          seen.add(mockItem.nrpNip);
+        const mockKey = mockItem.id || mockItem.noPerkara || mockItem.nrpNip;
+        if (mockKey && !seen.has(mockKey)) {
+          seen.add(mockKey);
           uniqueList.push(mockItem);
         }
       });

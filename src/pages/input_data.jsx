@@ -724,8 +724,8 @@ export default function InputData() {
                       handleSelectKesatuan(item);
                     }}
                     className={`p-5 rounded-xl border relative overflow-hidden transition-all duration-200 flex flex-col justify-between h-28 group cursor-pointer ${isSelected
-                        ? 'bg-[#0f2444] text-white border-blue-500 shadow-md ring-2 ring-amber-500/80 scale-[1.01]'
-                        : 'bg-[#0a1f3d] text-slate-300 border-slate-700 hover:bg-[#112d54] hover:text-white'
+                      ? 'bg-[#0f2444] text-white border-blue-500 shadow-md ring-2 ring-amber-500/80 scale-[1.01]'
+                      : 'bg-[#0a1f3d] text-slate-300 border-slate-700 hover:bg-[#112d54] hover:text-white'
                       }`}
                   >
                     <div className="flex justify-between items-start">
@@ -748,7 +748,7 @@ export default function InputData() {
               })}
             </section>
 
-            {/* 5. ACCESS CODE / PASSWORD BOX */}
+            {/* 5. Access code atau password box */}
             <section className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 max-w-2xl mx-auto mb-8">
               <div className="flex items-center gap-3 select-none">
                 <div className={`p-2 rounded-lg ${isVerified ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
@@ -772,8 +772,8 @@ export default function InputData() {
                   disabled={isVerified}
                   placeholder={isVerified ? "TERVERIFIKASI" : "KUNCI AKSES"}
                   className={`border rounded-lg px-3 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-blue-500/20 w-full sm:w-44 transition-all ${isVerified
-                      ? 'bg-emerald-50 text-emerald-600 border-emerald-200 font-bold'
-                      : 'border-slate-200 bg-slate-50 text-slate-700 font-mono tracking-widest'
+                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200 font-bold'
+                    : 'border-slate-200 bg-slate-50 text-slate-700 font-mono tracking-widest'
                     }`}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleVerify();
@@ -835,8 +835,8 @@ export default function InputData() {
                 <div className="flex items-center justify-center gap-4 mb-8 select-none border-b border-slate-100 pb-6">
                   <div className="flex items-center gap-2">
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${currentStep === 1
-                        ? 'bg-[#0a1f3d] text-white ring-4 ring-[#0a1f3d]/10'
-                        : 'bg-emerald-500 text-white'
+                      ? 'bg-[#0a1f3d] text-white ring-4 ring-[#0a1f3d]/10'
+                      : 'bg-emerald-500 text-white'
                       }`}>
                       {currentStep > 1 ? '✓' : '1'}
                     </div>
@@ -849,8 +849,8 @@ export default function InputData() {
 
                   <div className="flex items-center gap-2">
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${currentStep === 2
-                        ? 'bg-[#0a1f3d] text-white ring-4 ring-[#0a1f3d]/10'
-                        : 'bg-slate-200 text-slate-400'
+                      ? 'bg-[#0a1f3d] text-white ring-4 ring-[#0a1f3d]/10'
+                      : 'bg-slate-200 text-slate-400'
                       }`}>
                       2
                     </div>

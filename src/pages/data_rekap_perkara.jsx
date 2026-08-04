@@ -277,7 +277,7 @@ export default function DataRekapPerkara() {
       const uniqueList = [];
       const seen = new Set();
       firestoreList.forEach(item => {
-        const key = item.noPerkara || item.id;
+        const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
         if (key && !seen.has(key)) {
           seen.add(key);
           uniqueList.push({
@@ -288,7 +288,7 @@ export default function DataRekapPerkara() {
       });
 
       localList.forEach(item => {
-        const key = item.noPerkara || item.id;
+        const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
         if (key && !seen.has(key)) {
           seen.add(key);
           uniqueList.push({
@@ -299,7 +299,7 @@ export default function DataRekapPerkara() {
       });
 
       REKAP_MOCK_DATA.forEach(mockItem => {
-        const key = mockItem.noPerkara || mockItem.id;
+        const key = mockItem.id ? String(mockItem.id).trim() : (mockItem.noPerkara ? String(mockItem.noPerkara).trim() : null);
         if (key && !seen.has(key)) {
           seen.add(key);
           uniqueList.push({

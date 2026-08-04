@@ -104,7 +104,7 @@ export default function HalamanIsi() {
       const uniqueList = [];
       const seen = new Set();
       firestoreItems.forEach(item => {
-        const key = item.noPerkara || item.id;
+        const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
         if (key && !seen.has(key)) {
           seen.add(key);
           uniqueList.push(item);
@@ -112,7 +112,7 @@ export default function HalamanIsi() {
       });
 
       localList.forEach(item => {
-        const key = item.noPerkara || item.id;
+        const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
         if (key && !seen.has(key)) {
           seen.add(key);
           uniqueList.push(item);

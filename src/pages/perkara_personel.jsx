@@ -186,22 +186,31 @@ export default function PerkaraPersonel() {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const navigate = useNavigate();
 
-  // State - pre-initialized from LocalStorage cache for 0ms rendering
-  const [dossiers, setDossiers] = useState(() => {
-    const localData = localStorage.getItem('perkara_data');
-    const localList = localData ? JSON.parse(localData) : [];
+  const normalizeString = (val) => (val !== undefined && val !== null ? String(val).trim() : '');
+
+  const buildDossiersFromCases = (combinedCases) => {
     const baseDossiers = JSON.parse(JSON.stringify(PERSONNEL_DOSSIERS));
     
-    localList.forEach(caseItem => {
-      if (!caseItem.nrpNip) return;
-      let dossier = baseDossiers.find(d => d.nrpNip === caseItem.nrpNip);
+    combinedCases.forEach(caseItem => {
+      const itemNrp = normalizeString(caseItem.nrpNip);
+      const itemName = normalizeString(caseItem.namaLengkap);
+      
+      if (!itemNrp && !itemName) return; // skip only if both NRP and Name are empty
+      
+      // Match by nrpNip or by namaLengkap
+      let dossier = baseDossiers.find(d => {
+        const dNrp = normalizeString(d.nrpNip);
+        const dName = normalizeString(d.namaLengkap);
+        return (itemNrp && dNrp === itemNrp) || (itemName && dName.toLowerCase() === itemName.toLowerCase());
+      });
       
       const normalizedTahap = caseItem.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : caseItem.tahapPenyelesaian;
+      const caseNomor = caseItem.noPerkara || caseItem.id || `perkara_${Date.now()}`;
       
       const formattedCase = {
-        id: caseItem.id || caseItem.noPerkara,
+        id: caseItem.id || caseNomor,
         perkara: formatJenisPerkara(caseItem.jenisPerkara, caseItem.kategoriPelanggaran) || 'Perkara',
-        nomor: caseItem.noPerkara,
+        nomor: caseNomor,
         pasal: caseItem.pasal || '',
         badge: caseItem.status === 'SELESAI' ? 'PRIORITAS RENDAH' : 'PRIORITAS TINGGI',
         kronologis: caseItem.kronologis || 'Detail perkara sedang diproses.',
@@ -226,7 +235,7 @@ export default function PerkaraPersonel() {
       };
 
       if (dossier) {
-        if (!dossier.cases.some(c => c.nomor === caseItem.noPerkara)) {
+        if (!dossier.cases.some(c => normalizeString(c.nomor) === normalizeString(caseNomor))) {
           dossier.cases.push(formattedCase);
         }
         if (caseItem.fotoPersonel) {
@@ -237,7 +246,7 @@ export default function PerkaraPersonel() {
         }
       } else {
         const newDossier = {
-          nrpNip: caseItem.nrpNip,
+          nrpNip: itemNrp || itemName,
           namaLengkap: caseItem.namaLengkap || 'Nama Tidak Diketahui',
           pangkat: caseItem.pangkat || 'Pangkat -',
           jabatan: caseItem.jabatan || 'Jabatan -',
@@ -247,7 +256,7 @@ export default function PerkaraPersonel() {
           summary: { total: 0, selesai: 0 },
           cases: [formattedCase],
           logs: [
-            { waktu: 'Baru', aksi: `Perkara ${caseItem.noPerkara} terdaftar.` }
+            { waktu: 'Baru', aksi: `Perkara ${caseNomor} terdaftar.` }
           ]
         };
         baseDossiers.push(newDossier);
@@ -263,13 +272,20 @@ export default function PerkaraPersonel() {
     });
 
     return baseDossiers;
+  };
+
+  // State - pre-initialized from LocalStorage cache for 0ms rendering
+  const [dossiers, setDossiers] = useState(() => {
+    const localData = localStorage.getItem('perkara_data');
+    const localList = localData ? JSON.parse(localData) : [];
+    return buildDossiersFromCases(localList);
   });
 
   const [selectedNrp, setSelectedNrp] = useState(() => {
     const localData = localStorage.getItem('perkara_data');
     const localList = localData ? JSON.parse(localData) : [];
-    if (localList.length > 0 && localList[0].nrpNip) {
-      return localList[0].nrpNip;
+    if (localList.length > 0) {
+      return normalizeString(localList[0].nrpNip || localList[0].namaLengkap);
     }
     return '';
   });
@@ -277,69 +293,9 @@ export default function PerkaraPersonel() {
   const [currentDossier, setCurrentDossier] = useState(() => {
     const localData = localStorage.getItem('perkara_data');
     const localList = localData ? JSON.parse(localData) : [];
-    const baseDossiers = JSON.parse(JSON.stringify(PERSONNEL_DOSSIERS));
-    
-    localList.forEach(caseItem => {
-      if (!caseItem.nrpNip) return;
-      let dossier = baseDossiers.find(d => d.nrpNip === caseItem.nrpNip);
-      const normalizedTahap = caseItem.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : caseItem.tahapPenyelesaian;
-      const formattedCase = {
-        id: caseItem.id || caseItem.noPerkara,
-        perkara: formatJenisPerkara(caseItem.jenisPerkara, caseItem.kategoriPelanggaran) || 'Perkara',
-        nomor: caseItem.noPerkara,
-        pasal: caseItem.pasal || '',
-        badge: caseItem.status === 'SELESAI' ? 'PRIORITAS RENDAH' : 'PRIORITAS TINGGI',
-        kronologis: caseItem.kronologis || 'Detail perkara sedang diproses.',
-        tahapan: normalizedTahap || (caseItem.status === 'SELESAI' ? 'Selesai' : 'Proses'),
-        detailTahapan: normalizedTahap || 'Penyidikan',
-        putusan: caseItem.putusan || (caseItem.status === 'SELESAI' ? 'Putusan Selesai' : null),
-        dokumenPutusan: caseItem.dokumenPutusan || caseItem.putusan || null,
-        pidanaPokok: caseItem.pidanaPokok || '',
-        pidanaTambahan: caseItem.pidanaTambahan || '',
-        salinanPutusan: caseItem.salinanPutusan || null,
-        salinanPutusanName: caseItem.salinanPutusanName || '',
-        petikanPutusan: caseItem.petikanPutusan || null,
-        petikanPutusanName: caseItem.petikanPutusanName || '',
-        akteBht: caseItem.akteBht || null,
-        akteBhtName: caseItem.akteBhtName || ''
-      };
-
-      if (dossier) {
-        if (!dossier.cases.some(c => c.nomor === caseItem.noPerkara)) {
-          dossier.cases.push(formattedCase);
-        }
-        if (!dossier.satuan && caseItem.satuan) {
-          dossier.satuan = caseItem.satuan;
-        }
-      } else {
-        const newDossier = {
-          nrpNip: caseItem.nrpNip,
-          namaLengkap: caseItem.namaLengkap || 'Nama Tidak Diketahui',
-          pangkat: caseItem.pangkat || 'Pangkat -',
-          jabatan: caseItem.jabatan || 'Jabatan -',
-          satuan: caseItem.satuan || 'POMDAM XVII/CENDERAWASIH',
-          status: 'AKTIF',
-          fotoPersonel: caseItem.fotoPersonel || null,
-          summary: { total: 0, selesai: 0 },
-          cases: [formattedCase],
-          logs: [
-            { waktu: 'Baru', aksi: `Perkara ${caseItem.noPerkara} terdaftar.` }
-          ]
-        };
-        baseDossiers.push(newDossier);
-      }
-    });
-
-    baseDossiers.forEach(d => {
-      d.summary.total = d.cases.length;
-      d.summary.selesai = d.cases.filter(c => {
-        const t = (c.tahapan || '').toLowerCase();
-        return t.includes('selesai') || t.includes('putusan');
-      }).length;
-    });
-
-    const targetNrp = (localList.length > 0 && localList[0].nrpNip) ? localList[0].nrpNip : '';
-    return baseDossiers.find(d => d.nrpNip === targetNrp) || baseDossiers[0] || DEFAULT_DOSSIER;
+    const initialDossiers = buildDossiersFromCases(localList);
+    const targetNrp = (localList.length > 0) ? normalizeString(localList[0].nrpNip || localList[0].namaLengkap) : '';
+    return initialDossiers.find(d => normalizeString(d.nrpNip) === targetNrp) || initialDossiers[0] || DEFAULT_DOSSIER;
   });
   const [stageFilter, setStageFilter] = useState('');
   
@@ -420,87 +376,8 @@ export default function PerkaraPersonel() {
         }
       });
       
-      // Let's copy the static mock dossiers
-      const baseDossiers = JSON.parse(JSON.stringify(PERSONNEL_DOSSIERS));
-      
-      combinedCases.forEach(caseItem => {
-        if (!caseItem.nrpNip) return; // skip if no nrpNip
-        
-        // Find existing dossier in baseDossiers
-        let dossier = baseDossiers.find(d => d.nrpNip === caseItem.nrpNip);
-        
-        const normalizedTahap = caseItem.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : caseItem.tahapPenyelesaian;
-        
-        // Format caseItem to match the dossier's case schema
-        const formattedCase = {
-          id: caseItem.id || caseItem.noPerkara,
-          perkara: formatJenisPerkara(caseItem.jenisPerkara, caseItem.kategoriPelanggaran) || 'Perkara',
-          nomor: caseItem.noPerkara,
-          pasal: caseItem.pasal || '',
-          badge: caseItem.status === 'SELESAI' ? 'PRIORITAS RENDAH' : 'PRIORITAS TINGGI',
-          kronologis: caseItem.kronologis || 'Detail perkara sedang diproses.',
-          tahapan: normalizedTahap || (caseItem.status === 'SELESAI' ? 'Selesai' : 'Proses'),
-          detailTahapan: normalizedTahap || 'Penyidikan',
-          putusan: caseItem.putusan || (caseItem.status === 'SELESAI' ? 'Putusan Selesai' : null),
-          dokumenPutusan: caseItem.dokumenPutusan || caseItem.putusan || null,
-          pidanaPokok: caseItem.pidanaPokok || '',
-          pidanaTambahan: caseItem.pidanaTambahan || '',
-          noSalinanPutusan: caseItem.noSalinanPutusan || '',
-          noPetikanPutusan: caseItem.noPetikanPutusan || '',
-          noAkteBht: caseItem.noAkteBht || '',
-          salinanPutusan: caseItem.salinanPutusan || null,
-          salinanPutusanName: caseItem.salinanPutusanName || '',
-          petikanPutusan: caseItem.petikanPutusan || null,
-          petikanPutusanName: caseItem.petikanPutusanName || '',
-          akteBht: caseItem.akteBht || null,
-          akteBhtName: caseItem.akteBhtName || '',
-          fileUrl: caseItem.fileUrl || null,
-          fileName: caseItem.fileName || '',
-          status: caseItem.status
-        };
-        
-        if (dossier) {
-          // If the dossier exists, check if the case is already added
-          if (!dossier.cases.some(c => c.nomor === caseItem.noPerkara)) {
-            dossier.cases.push(formattedCase);
-          }
-          // If the caseItem has a photo, update the dossier's photo
-          if (caseItem.fotoPersonel) {
-            dossier.fotoPersonel = caseItem.fotoPersonel;
-          }
-          if (!dossier.satuan && caseItem.satuan) {
-            dossier.satuan = caseItem.satuan;
-          }
-        } else {
-          // Create new dossier
-          const newDossier = {
-            nrpNip: caseItem.nrpNip,
-            namaLengkap: caseItem.namaLengkap || 'Nama Tidak Diketahui',
-            pangkat: caseItem.pangkat || 'Pangkat -',
-            jabatan: caseItem.jabatan || 'Jabatan -',
-            satuan: caseItem.satuan || 'POMDAM XVII/CENDERAWASIH',
-            status: 'AKTIF',
-            fotoPersonel: caseItem.fotoPersonel || null,
-            summary: { total: 0, selesai: 0 },
-            cases: [formattedCase],
-            logs: [
-              { waktu: 'Baru', aksi: `Perkara ${caseItem.noPerkara} terdaftar.` }
-            ]
-          };
-          baseDossiers.push(newDossier);
-        }
-      });
-      
-      // Recalculate summaries for all dossiers
-      baseDossiers.forEach(d => {
-        d.summary.total = d.cases.length;
-        d.summary.selesai = d.cases.filter(c => {
-          const t = (c.tahapan || '').toLowerCase();
-          return t.includes('selesai') || t.includes('putusan') || c.status === 'SELESAI';
-        }).length;
-      });
-
-      setDossiers(baseDossiers);
+      const updatedDossiers = buildDossiersFromCases(combinedCases);
+      setDossiers(updatedDossiers);
     };
 
     loadDynamicData();
@@ -509,7 +386,8 @@ export default function PerkaraPersonel() {
   // Update selected NRP if it is no longer valid or unset
   useEffect(() => {
     if (dossiers.length > 0) {
-      if (!selectedNrp || !dossiers.some(d => d.nrpNip === selectedNrp)) {
+      const exists = dossiers.some(d => normalizeString(d.nrpNip) === normalizeString(selectedNrp));
+      if (!selectedNrp || !exists) {
         setSelectedNrp(dossiers[0].nrpNip);
       }
     }
@@ -517,9 +395,11 @@ export default function PerkaraPersonel() {
 
   // Load Dossier based on chosen NRP selection
   useEffect(() => {
-    const dossier = dossiers.find(d => d.nrpNip === selectedNrp);
+    const dossier = dossiers.find(d => normalizeString(d.nrpNip) === normalizeString(selectedNrp));
     if (dossier) {
       setCurrentDossier(dossier);
+    } else if (dossiers.length > 0) {
+      setCurrentDossier(dossiers[0]);
     } else {
       setCurrentDossier(DEFAULT_DOSSIER);
     }
