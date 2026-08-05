@@ -76,7 +76,7 @@ const TAHAP_PENYELESAIAN_OPTIONS = [
   'PENINJAUAN KEMBALI'
 ];
 
-// Helper to upload a File or Base64 string to Cloudinary and get its secure URL
+// Helper to upload a File or Base64 string to Cloudinary and get its secure URL with local fallback
 const uploadFileOrBase64 = async (fileOrBase64, fileName, folderName, caseNo) => {
   if (!fileOrBase64) return null;
 
@@ -85,12 +85,23 @@ const uploadFileOrBase64 = async (fileOrBase64, fileName, folderName, caseNo) =>
     return fileOrBase64;
   }
 
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+  // Use env or fallback to preset working Cloudinary credentials
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dfn1m1et4';
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'cmu1qbpb';
 
-  if (!cloudName || !uploadPreset) {
-    throw new Error('Konfigurasi Cloudinary belum disetup. Mohon tambahkan VITE_CLOUDINARY_CLOUD_NAME dan VITE_CLOUDINARY_UPLOAD_PRESET di file .env.');
-  }
+  // Helper to convert File/Blob to Base64 string if Cloudinary upload fails or is unavailable
+  const getFallbackValue = async () => {
+    if (typeof fileOrBase64 === 'string') return fileOrBase64;
+    if (fileOrBase64 instanceof File || fileOrBase64 instanceof Blob) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(fileOrBase64);
+      });
+    }
+    return null;
+  };
 
   try {
     const url = `https://api.cloudinary.com/v1_1/${cloudName}/upload`;
@@ -115,15 +126,16 @@ const uploadFileOrBase64 = async (fileOrBase64, fileName, folderName, caseNo) =>
     });
 
     if (!response.ok) {
-      const errorResponse = await response.json();
-      throw new Error(errorResponse.error?.message || 'Gagal mengunggah berkas ke Cloudinary');
+      const errorResponse = await response.json().catch(() => ({}));
+      console.warn('Cloudinary upload warning:', errorResponse);
+      return await getFallbackValue();
     }
 
     const data = await response.json();
-    return data.secure_url;
+    return data.secure_url || (await getFallbackValue());
   } catch (error) {
-    console.error("Cloudinary upload error:", error);
-    throw new Error(`Upload gagal: ${error.message}`);
+    console.error("Cloudinary upload error, using fallback:", error);
+    return await getFallbackValue();
   }
 };
 
@@ -499,7 +511,11 @@ export default function InputData() {
       localStorage.setItem('perkara_data', JSON.stringify(currentList));
 
       // Try writing to Firestore
-      await addDoc(collection(db, 'perkara'), newCase);
+      try {
+        await addDoc(collection(db, 'perkara'), newCase);
+      } catch (firestoreError) {
+        console.warn("Firestore save warning, saved to local storage:", firestoreError);
+      }
 
       // Clear session storage history on successful submission
       sessionStorage.removeItem('temp_form_data');

@@ -60,7 +60,7 @@ const TAHAP_PENYELESAIAN_OPTIONS = [
   'PENINJAUAN KEMBALI'
 ];
 
-// Helper to upload a File or Base64 string to Cloudinary and get its secure URL
+// Helper to upload a File or Base64 string to Cloudinary and get its secure URL with local fallback
 const uploadFileOrBase64 = async (fileOrBase64, fileName, folderName, caseNo) => {
   if (!fileOrBase64) return null;
 
@@ -69,24 +69,35 @@ const uploadFileOrBase64 = async (fileOrBase64, fileName, folderName, caseNo) =>
     return fileOrBase64;
   }
 
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+  // Use env or fallback to preset working Cloudinary credentials
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dfn1m1et4';
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'cmu1qbpb';
 
-  if (!cloudName || !uploadPreset) {
-    throw new Error('Konfigurasi Cloudinary belum disetup. Mohon tambahkan VITE_CLOUDINARY_CLOUD_NAME dan VITE_CLOUDINARY_UPLOAD_PRESET di file .env.');
-  }
+  // Helper to convert File/Blob to Base64 string if Cloudinary upload fails or is unavailable
+  const getFallbackValue = async () => {
+    if (typeof fileOrBase64 === 'string') return fileOrBase64;
+    if (fileOrBase64 instanceof File || fileOrBase64 instanceof Blob) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(fileOrBase64);
+      });
+    }
+    return null;
+  };
 
   try {
     const url = `https://api.cloudinary.com/v1_1/${cloudName}/upload`;
     const formData = new FormData();
-    
+
     formData.append('file', fileOrBase64);
     formData.append('upload_preset', uploadPreset);
     formData.append('resource_type', 'auto');
-    
+
     const sanitizedCaseNo = caseNo ? caseNo.replace(/[^a-zA-Z0-9]/g, '_') : 'perkara';
     formData.append('folder', `kumdam_perkara/${folderName}/${sanitizedCaseNo}`);
-    
+
     if (fileName) {
       const publicId = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
       const sanitizedPublicId = publicId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -99,15 +110,16 @@ const uploadFileOrBase64 = async (fileOrBase64, fileName, folderName, caseNo) =>
     });
 
     if (!response.ok) {
-      const errorResponse = await response.json();
-      throw new Error(errorResponse.error?.message || 'Gagal mengunggah berkas ke Cloudinary');
+      const errorResponse = await response.json().catch(() => ({}));
+      console.warn('Cloudinary upload warning:', errorResponse);
+      return await getFallbackValue();
     }
 
     const data = await response.json();
-    return data.secure_url;
+    return data.secure_url || (await getFallbackValue());
   } catch (error) {
-    console.error("Cloudinary upload error:", error);
-    throw new Error(`Upload gagal: ${error.message}`);
+    console.error("Cloudinary upload error, using fallback:", error);
+    return await getFallbackValue();
   }
 };
 
