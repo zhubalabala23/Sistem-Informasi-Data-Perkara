@@ -27,7 +27,7 @@ import {
   Edit2
 } from 'lucide-react';
 import { db, storage } from '../firebase/config';
-import { collection, getDocs, doc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, deleteDoc, query, onSnapshot } from 'firebase/firestore';
 import { ref, deleteObject } from 'firebase/storage';
 
 import logoKumdam from '../assets/images/logo_kumdam.jpeg';
@@ -256,68 +256,52 @@ export default function DataRekapPerkara() {
     status: ''
   });
 
-  // Fetch Firestore + merge with mock data for robust list
+  // Fetch Firestore + real-time synchronization listener
   useEffect(() => {
-    const loadData = async () => {
-      let firestoreList = [];
-      try {
-        const querySnapshot = await getDocs(collection(db, 'perkara'));
-        querySnapshot.forEach((doc) => {
-          firestoreList.push({ id: doc.id, ...doc.data() });
+    const q = query(collection(db, 'perkara'));
+    const unsubscribe = onSnapshot(q,
+      (snapshot) => {
+        const firestoreList = [];
+        snapshot.forEach((doc) => {
+          firestoreList.push({
+            id: doc.id,
+            ...doc.data(),
+            tahapPenyelesaian: doc.data().tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (doc.data().tahapPenyelesaian?.toUpperCase() || (doc.data().status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL'))
+          });
         });
-      } catch (error) {
-        console.warn("Could not fetch Firestore data. Using LocalStorage/Mock fallback.", error);
+
+        // Read local storage for offline created un-synced items
+        const localData = localStorage.getItem('perkara_data');
+        const localList = localData ? JSON.parse(localData) : [];
+        const offlineItems = localList.filter(item => item.isOfflineCreated).map(item => ({
+          ...item,
+          tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL'))
+        }));
+
+        const seen = new Set(firestoreList.map(item => item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null)).filter(Boolean));
+        const combined = [...firestoreList];
+
+        offlineItems.forEach(item => {
+          const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            combined.push(item);
+          }
+        });
+
+        localStorage.setItem('perkara_data', JSON.stringify(combined));
+        setPerkaraList(combined);
+
+        if (combined.length > 0) {
+          setSelectedCase(prev => prev || combined[0]);
+        }
+      },
+      (error) => {
+        console.warn("Could not sync real-time Firestore data. Using LocalStorage fallback.", error);
       }
+    );
 
-      // Read local storage
-      const localData = localStorage.getItem('perkara_data');
-      const localList = localData ? JSON.parse(localData) : [];
-
-      // Combine: Firestore first, then only offline-created items from LocalStorage
-      const uniqueList = [];
-      const seen = new Set();
-      firestoreList.forEach(item => {
-        const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          uniqueList.push({
-            ...item,
-            tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL'))
-          });
-        }
-      });
-
-      localList.forEach(item => {
-        const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          uniqueList.push({
-            ...item,
-            tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL'))
-          });
-        }
-      });
-
-      REKAP_MOCK_DATA.forEach(mockItem => {
-        const key = mockItem.id ? String(mockItem.id).trim() : (mockItem.noPerkara ? String(mockItem.noPerkara).trim() : null);
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          uniqueList.push({
-            ...mockItem,
-            tahapPenyelesaian: mockItem.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (mockItem.tahapPenyelesaian?.toUpperCase() || (mockItem.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL'))
-          });
-        }
-      });
-
-      setPerkaraList(uniqueList);
-      
-      // Set the first case as the default selected case if none is selected yet
-      if (uniqueList.length > 0) {
-        setSelectedCase(prev => prev || uniqueList[0]);
-      }
-    };
-
-    loadData();
+    return () => unsubscribe();
   }, []);
 
   // Filter application

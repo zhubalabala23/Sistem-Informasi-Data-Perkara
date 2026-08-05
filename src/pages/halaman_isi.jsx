@@ -20,7 +20,7 @@ import {
   User
 } from 'lucide-react';
 import { db } from '../firebase/config';
-import { collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, onSnapshot } from 'firebase/firestore';
 
 // Initial data matching the mockup exactly
 const INITIAL_MOCK_DATA = [];
@@ -70,10 +70,7 @@ export default function HalamanIsi() {
     return localData ? JSON.parse(localData) : [];
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(() => {
-    const localData = localStorage.getItem('perkara_data');
-    return !localData || JSON.parse(localData).length === 0;
-  });
+  const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [selectedCaseDetail, setSelectedCaseDetail] = useState(null);
 
@@ -86,51 +83,51 @@ export default function HalamanIsi() {
     tanggal: new Date().toISOString().split('T')[0]
   });
 
-  // Load cases from Firestore or local fallback
-  const fetchPerkara = async () => {
-    try {
-      const q = query(collection(db, 'perkara'), orderBy('tanggal', 'desc'));
-      const querySnapshot = await getDocs(q);
-      const firestoreItems = [];
-      querySnapshot.forEach((doc) => {
-        firestoreItems.push({ id: doc.id, ...doc.data() });
-      });
-
-      // Get current local items
-      const localData = localStorage.getItem('perkara_data');
-      const localList = localData ? JSON.parse(localData) : [];
-
-      // Combine: Firestore first, then only offline-created items from LocalStorage
-      const uniqueList = [];
-      const seen = new Set();
-      firestoreItems.forEach(item => {
-        const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          uniqueList.push(item);
-        }
-      });
-
-      localList.forEach(item => {
-        const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          uniqueList.push(item);
-        }
-      });
-
-      // Save back to LocalStorage to keep in sync
-      localStorage.setItem('perkara_data', JSON.stringify(uniqueList));
-      setPerkaraList(uniqueList);
-    } catch (error) {
-      console.warn("Firestore sync failed. Using LocalStorage offline.", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Realtime synchronization listener for Firestore
   useEffect(() => {
-    fetchPerkara();
+    const q = query(collection(db, 'perkara'));
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        const firestoreItems = [];
+        snapshot.forEach((doc) => {
+          firestoreItems.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Sort client-side so documents without 'tanggal' are not excluded by Firestore
+        firestoreItems.sort((a, b) => new Date(b.tanggal || 0) - new Date(a.tanggal || 0));
+
+        // Preserve un-synced offline items created on this device if any
+        const localData = localStorage.getItem('perkara_data');
+        const localList = localData ? JSON.parse(localData) : [];
+        const offlineItems = localList.filter(item => item.isOfflineCreated);
+
+        const seen = new Set(firestoreItems.map(item => item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null)).filter(Boolean));
+        const combined = [...firestoreItems];
+
+        offlineItems.forEach(item => {
+          const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            combined.push(item);
+          }
+        });
+
+        // Save back to LocalStorage to keep client cache in sync
+        localStorage.setItem('perkara_data', JSON.stringify(combined));
+        setPerkaraList(combined);
+        setLoading(false);
+      },
+      (error) => {
+        console.warn("Realtime Firestore sync warning. Using LocalStorage fallback:", error);
+        const localData = localStorage.getItem('perkara_data');
+        if (localData) {
+          setPerkaraList(JSON.parse(localData));
+        }
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
   }, []);
 
   // Show auto-fading toast
@@ -170,7 +167,6 @@ export default function HalamanIsi() {
       // Try adding to Firestore
       const docRef = await addDoc(collection(db, 'perkara'), newCase);
       showToast('Data perkara berhasil disimpan to Firestore!');
-      fetchPerkara();
     } catch (error) {
       console.warn("Could not save to Firestore, saving to LocalStorage instead.", error);
       // Fallback: LocalStorage

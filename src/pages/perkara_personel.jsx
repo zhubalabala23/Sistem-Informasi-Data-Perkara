@@ -26,7 +26,7 @@ import {
   Database
 } from 'lucide-react';
 import { db } from '../firebase/config';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, onSnapshot } from 'firebase/firestore';
 
 import logoKumdam from '../assets/images/logo_kumdam.jpeg';
 
@@ -340,47 +340,42 @@ export default function PerkaraPersonel() {
     }, 150);
   };
 
-  // Load Firestore + LocalStorage cases and build dynamic dossiers
+  // Load Firestore + real-time synchronization listener to build dynamic dossiers
   useEffect(() => {
-    const loadDynamicData = async () => {
-      let firestoreList = [];
-      try {
-        const querySnapshot = await getDocs(collection(db, 'perkara'));
-        querySnapshot.forEach((doc) => {
+    const q = query(collection(db, 'perkara'));
+    const unsubscribe = onSnapshot(q,
+      (snapshot) => {
+        const firestoreList = [];
+        snapshot.forEach((doc) => {
           firestoreList.push({ id: doc.id, ...doc.data() });
         });
-      } catch (error) {
-        console.warn("Could not fetch Firestore data. Using LocalStorage/Mock fallback.", error);
+
+        // Read local storage for un-synced offline created items
+        const localData = localStorage.getItem('perkara_data');
+        const localList = localData ? JSON.parse(localData) : [];
+        const offlineItems = localList.filter(item => item.isOfflineCreated);
+
+        const seen = new Set(firestoreList.map(item => item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null)).filter(Boolean));
+        const combined = [...firestoreList];
+
+        offlineItems.forEach(item => {
+          const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            combined.push(item);
+          }
+        });
+
+        localStorage.setItem('perkara_data', JSON.stringify(combined));
+        const updatedDossiers = buildDossiersFromCases(combined);
+        setDossiers(updatedDossiers);
+      },
+      (error) => {
+        console.warn("Realtime Firestore sync warning in perkara_personel:", error);
       }
+    );
 
-      // Read local storage
-      const localData = localStorage.getItem('perkara_data');
-      const localList = localData ? JSON.parse(localData) : [];
-
-      // Combine and deduplicate cases by noPerkara/id
-      const combinedCases = [];
-      const seen = new Set();
-      firestoreList.forEach(item => {
-        const key = item.noPerkara || item.id;
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          combinedCases.push(item);
-        }
-      });
-
-      localList.forEach(item => {
-        const key = item.noPerkara || item.id;
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          combinedCases.push(item);
-        }
-      });
-      
-      const updatedDossiers = buildDossiersFromCases(combinedCases);
-      setDossiers(updatedDossiers);
-    };
-
-    loadDynamicData();
+    return () => unsubscribe();
   }, []);
 
   // Update selected NRP if it is no longer valid or unset

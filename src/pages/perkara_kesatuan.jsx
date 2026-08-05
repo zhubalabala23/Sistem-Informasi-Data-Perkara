@@ -22,7 +22,7 @@ import {
   Database
 } from 'lucide-react';
 import { db } from '../firebase/config';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, onSnapshot } from 'firebase/firestore';
 
 import logoKumdam from '../assets/images/logo_kumdam.jpeg';
 
@@ -247,13 +247,13 @@ export default function PerkaraKesatuan() {
   const [exportProgress, setExportProgress] = useState(0);
   const [exportStep, setExportStep] = useState('select'); // select, processing, done
 
-  // Fetch Firestore + LocalStorage + merge with mock data
+  // Fetch Firestore + Real-time synchronization listener
   useEffect(() => {
-    const fetchData = async () => {
-      let firestoreList = [];
-      try {
-        const querySnapshot = await getDocs(collection(db, 'perkara'));
-        querySnapshot.forEach((doc) => {
+    const q = query(collection(db, 'perkara'));
+    const unsubscribe = onSnapshot(q,
+      (snapshot) => {
+        const firestoreList = [];
+        snapshot.forEach((doc) => {
           const data = doc.data();
           firestoreList.push({
             id: doc.id,
@@ -283,71 +283,32 @@ export default function PerkaraKesatuan() {
             status: data.status || ''
           });
         });
-      } catch (error) {
-        console.warn("Could not load Firestore. Using fallbacks.", error);
+
+        // Read local storage for un-synced offline created items
+        const localData = localStorage.getItem('perkara_data');
+        const localList = localData ? JSON.parse(localData) : [];
+        const offlineItems = localList.filter(item => item.isOfflineCreated);
+
+        const seen = new Set(firestoreList.map(item => item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null)).filter(Boolean));
+        const combined = [...firestoreList];
+
+        offlineItems.forEach(item => {
+          const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            combined.push(item);
+          }
+        });
+
+        localStorage.setItem('perkara_data', JSON.stringify(combined));
+        setPerkaraList(combined);
+      },
+      (error) => {
+        console.warn("Realtime Firestore sync warning in perkara_kesatuan:", error);
       }
+    );
 
-      // Read local storage
-      const localData = localStorage.getItem('perkara_data');
-      const localList = localData ? JSON.parse(localData) : [];
-      const mappedLocal = localList.map(item => ({
-        id: item.id,
-        isOfflineCreated: item.isOfflineCreated,
-        noPerkara: item.noPerkara || '',
-        namaLengkap: item.namaLengkap,
-        nrpNip: item.nrpNip,
-        pangkat: item.pangkat,
-        satuan: item.satuan,
-        jenisPerkara: item.jenisPerkara,
-        kategoriPelanggaran: item.kategoriPelanggaran || '',
-        pasal: item.pasal || '',
-        tahapPenyelesaian: item.tahapPenyelesaian?.toUpperCase() === 'SIDANG' ? 'DILMIL' : (item.tahapPenyelesaian?.toUpperCase() || (item.status === 'SELESAI' ? 'PUTUSAN' : 'DILMIL')),
-        putusan: item.putusan || (item.status === 'SELESAI' ? 'Selesai' : '-'),
-        pidanaPokok: item.pidanaPokok || '',
-        pidanaTambahan: item.pidanaTambahan || '',
-        noSalinanPutusan: item.noSalinanPutusan || '',
-        noPetikanPutusan: item.noPetikanPutusan || '',
-        noAkteBht: item.noAkteBht || '',
-        salinanPutusan: item.salinanPutusan || null,
-        salinanPutusanName: item.salinanPutusanName || '',
-        petikanPutusan: item.petikanPutusan || null,
-        petikanPutusanName: item.petikanPutusanName || '',
-        akteBht: item.akteBht || null,
-        akteBhtName: item.akteBhtName || '',
-        status: item.status || ''
-      }));
-
-      // Combine and filter duplicates
-      const uniqueList = [];
-      const seen = new Set();
-      firestoreList.forEach(item => {
-        const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          uniqueList.push(item);
-        }
-      });
-
-      mappedLocal.forEach(item => {
-        const key = item.id ? String(item.id).trim() : (item.noPerkara ? String(item.noPerkara).trim() : null);
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          uniqueList.push(item);
-        }
-      });
-
-      MOCK_KESATUAN_DATA.forEach(mockItem => {
-        const mockKey = mockItem.id || mockItem.noPerkara || mockItem.nrpNip;
-        if (mockKey && !seen.has(mockKey)) {
-          seen.add(mockKey);
-          uniqueList.push(mockItem);
-        }
-      });
-
-      setPerkaraList(uniqueList);
-    };
-
-    fetchData();
+    return () => unsubscribe();
   }, []);
 
   // Filter logic trigger on Apply button
